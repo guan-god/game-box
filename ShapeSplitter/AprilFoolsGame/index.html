@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极简反应力测试 (Zen Reaction)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #333333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .container {
+            text-align: center;
+            max-width: 800px;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            font-weight: 300;
+            color: #2c3e50;
+            letter-spacing: -1px;
+        }
+        
+        .instructions {
+            font-size: 1.3rem;
+            margin-bottom: 40px;
+            color: #666666;
+            line-height: 1.5;
+        }
+        
+        .stage {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            color: #999999;
+            font-weight: 500;
+        }
+        
+        .reaction-time {
+            font-size: 2rem;
+            margin: 30px 0;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .feedback {
+            font-size: 1.3rem;
+            margin: 15px 0;
+            color: #27ae60;
+            font-weight: 500;
+        }
+        
+        .button-container {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            margin: 50px 0;
+        }
+        
+        #start-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 25px 50px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background-color: #e0e0e0;
+            color: #333333;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        #start-button:hover {
+            transform: translate(-50%, -50%) scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        #start-button.ready {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+        
+        #restart-button {
+            margin-top: 40px;
+            padding: 18px 36px;
+            font-size: 1.3rem;
+            border: 3px solid #333;
+            border-radius: 50px;
+            background-color: transparent;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        
+        #restart-button:hover {
+            background-color: #333;
+            color: white;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* 整蛊阶段动画 */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0) rotate(0deg); }
+            25% { transform: translateX(-15px) rotate(-3deg); }
+            50% { transform: translateX(15px) rotate(3deg); }
+            75% { transform: translateX(-15px) rotate(-3deg); }
+        }
+        
+        body.shaking {
+            animation: shake 0.08s infinite;
+        }
+        
+        @keyframes rainbow {
+            0% { background-color: red; }
+            10% { background-color: orange; }
+            20% { background-color: yellow; }
+            30% { background-color: green; }
+            40% { background-color: blue; }
+            50% { background-color: indigo; }
+            60% { background-color: violet; }
+            70% { background-color: red; }
+            80% { background-color: orange; }
+            90% { background-color: yellow; }
+            100% { background-color: red; }
+        }
+        
+        body.rainbow {
+            animation: rainbow 0.3s infinite;
+        }
+        
+        .system-popup {
+            position: absolute;
+            padding: 20px;
+            background-color: #ffeeee;
+            border: 3px solid #ff0000;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+            font-size: 16px;
+            font-weight: 500;
+            z-index: 1000;
+            animation: popup 0.3s ease-out;
+        }
+        
+        @keyframes popup {
+            0% { opacity: 0; transform: scale(0.5); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        .final-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: #ffffff;
+            padding: 60px;
+            border-radius: 20px;
+            text-align: center;
+            font-size: 2rem;
+            z-index: 2000;
+            max-width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: drop-in 0.8s ease-out;
+        }
+        
+        @keyframes drop-in {
+            0% { transform: translate(-50%, -200%); opacity: 0; }
+            70% { transform: translate(-50%, -40%); opacity: 1; }
+            100% { transform: translate(-50%, -50%); opacity: 1; }
+        }
+        
+        /* 音乐控制 */
+        .music-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .music-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            background-color: rgba(52, 152, 219, 0.8);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .music-btn:hover {
+            background-color: rgba(52, 152, 219, 1);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <!-- 音乐控制按钮（隐藏，整蛊时自动播放） -->
+    <div class="music-controls" style="display: none;">
+        <button class="music-btn" id="play-music">🎵 播放音乐</button>
+        <button class="music-btn" id="stop-music">⏹️ 停止音乐</button>
+    </div>
+    
+    <div class="container">
+        <h1>极简反应力测试 (Zen Reaction)</h1>
+        <div class="stage">第 <span id="round">1</span> 轮 / 共 4 轮</div>
+        <div class="instructions" id="instructions">准备就绪，点击开始按钮</div>
+        <div class="reaction-time" id="reaction-time"></div>
+        <div class="feedback" id="feedback"></div>
+        
+        <div class="button-container">
+            <button id="start-button">开始测试</button>
+        </div>
+        
+        <button id="restart-button" style="display: none;">我不服，再来一次</button>
+    </div>
+    
+    <!-- 音频元素 -->
+    <audio id="background-music" loop>
+        <!-- 这里将插入音乐文件，用户后续会提供 -->
+    </audio>
+    
+    <script>
+        // 游戏状态
+        let gameState = {
+            round: 1,
+            isPlaying: false,
+            startTime: 0,
+            isTrickMode: false,
+            mousePos: { x: 0, y: 0 },
+            buttonPos: { x: 0, y: 0 },
+            buttonSize: { width: 0, height: 0 }
+        };
+        
+        // DOM 元素
+        const startButton = document.getElementById('start-button');
+        const restartButton = document.getElementById('restart-button');
+        const instructions = document.getElementById('instructions');
+        const reactionTime = document.getElementById('reaction-time');
+        const feedback = document.getElementById('feedback');
+        const roundDisplay = document.getElementById('round');
+        const body = document.body;
+        const playMusicBtn = document.getElementById('play-music');
+        const stopMusicBtn = document.getElementById('stop-music');
+        const backgroundMusic = document.getElementById('background-music');
+        
+        // 音乐控制（整蛊时自动播放）
+        
+        // 鼠标移动监听
+        document.addEventListener('mousemove', (e) => {
+            gameState.mousePos = {
+                x: e.clientX,
+                y: e.clientY
+            };
+            
+            // 整蛊模式下按钮躲避
+            if (gameState.isTrickMode && gameState.isPlaying) {
+                moveButtonAway();
+            }
+        });
+        
+        // 按钮点击事件
+        startButton.addEventListener('click', () => {
+            if (gameState.isPlaying) {
+                if (gameState.isTrickMode) {
+                    // 整蛊模式下点击无效
+                    return;
+                } else {
+                    // 正常模式下计算反应时间
+                    const endTime = performance.now();
+                    const time = Math.floor(endTime - gameState.startTime);
+                    showReactionTime(time);
+                }
+            } else {
+                startRound();
+            }
+        });
+        
+        // 重新开始按钮
+        restartButton.addEventListener('click', () => {
+            location.reload();
+        });
+        
+        // 开始新一轮
+        function startRound() {
+            gameState.isPlaying = true;
+            instructions.textContent = '准备...';
+            startButton.textContent = '准备...';
+            startButton.className = '';
+            reactionTime.textContent = '';
+            feedback.textContent = '';
+            
+            // 随机延迟后显示点击按钮
+            const delay = 1000 + Math.random() * 2000;
+            
+            setTimeout(() => {
+                if (gameState.isPlaying) {
+                    startButton.textContent = '点击！';
+                    startButton.className = 'ready';
+                    instructions.textContent = '尽快点击！';
+                    gameState.startTime = performance.now();
+                    
+                    // 检查是否是第4轮（整蛊轮）
+                    if (gameState.round === 4) {
+                        gameState.isTrickMode = true;
+                        startTrickMode();
+                    }
+                }
+            }, delay);
+        }
+        
+        // 显示反应时间和反馈
+        function showReactionTime(time) {
+            gameState.isPlaying = false;
+            startButton.textContent = '开始测试';
+            startButton.className = '';
+            reactionTime.textContent = `反应时间: ${time}ms`;
+            
+            // 生成随机但合理的反馈
+            const feedbacks = [
+                '你的反应速度超过了全世界 85% 的玩家，具备电竞选手潜质！',
+                '出色的反应能力！你可以考虑参加专业反应力比赛。',
+                '难以置信的速度！你的神经系统非常敏锐。',
+                '太棒了！你的反应时间处于顶尖水平。',
+                '令人印象深刻的表现！你有成为职业玩家的潜力。'
+            ];
+            
+            feedback.textContent = feedbacks[Math.floor(Math.random() * feedbacks.length)];
+            
+            // 进入下一轮
+            gameState.round++;
+            if (gameState.round <= 4) {
+                roundDisplay.textContent = gameState.round;
+                instructions.textContent = '点击开始按钮进入下一轮';
+            }
+        }
+        
+        // 开始整蛊模式
+        function startTrickMode() {
+            // 获取按钮尺寸和初始位置
+            const rect = startButton.getBoundingClientRect();
+            gameState.buttonSize = {
+                width: rect.width,
+                height: rect.height
+            };
+            
+            // 2秒后开始崩溃效果（缩短时间）
+            setTimeout(() => {
+                startCrashEffect();
+            }, 2000);
+        }
+        
+        // 按钮躲避逻辑
+        function moveButtonAway() {
+            const buttonRect = startButton.getBoundingClientRect();
+            const buttonCenter = {
+                x: buttonRect.left + buttonRect.width / 2,
+                y: buttonRect.top + buttonRect.height / 2
+            };
+            
+            // 计算鼠标与按钮中心的距离
+            const dx = gameState.mousePos.x - buttonCenter.x;
+            const dy = gameState.mousePos.y - buttonCenter.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // 当鼠标靠近时，按钮移动
+            const threshold = 150;
+            if (distance < threshold) {
+                // 计算移动方向（远离鼠标）
+                const angle = Math.atan2(dy, dx);
+                const moveDistance = (threshold - distance) * 0.5;
+                
+                const moveX = Math.cos(angle) * moveDistance;
+                const moveY = Math.sin(angle) * moveDistance;
+                
+                // 计算新位置，确保按钮不会移出屏幕
+                let newX = buttonCenter.x - buttonRect.width / 2 - moveX;
+                let newY = buttonCenter.y - buttonRect.height / 2 - moveY;
+                
+                // 边界检查
+                newX = Math.max(0, Math.min(window.innerWidth - buttonRect.width, newX));
+                newY = Math.max(0, Math.min(window.innerHeight - buttonRect.height, newY));
+                
+                // 更新按钮位置
+                startButton.style.left = `${newX}px`;
+                startButton.style.top = `${newY}px`;
+                startButton.style.transform = 'none';
+            }
+        }
+        
+        // 开始崩溃效果
+        function startCrashEffect() {
+            gameState.isPlaying = false;
+            
+            // 自动播放音乐
+            backgroundMusic.play().catch(e => {
+                console.log('音乐播放失败:', e);
+            });
+            
+            // 添加抖动效果
+            body.classList.add('shaking');
+            
+            // 添加彩虹背景
+            body.classList.add('rainbow');
+            
+            // 生成系统弹窗
+            generateSystemPopups();
+            
+            // 3秒后显示最终消息（缩短时间）
+            setTimeout(() => {
+                showFinalMessage();
+            }, 3000);
+        }
+        
+        // 生成系统弹窗
+        function generateSystemPopups() {
+            const messages = [
+                '⚠️ 警告：检测到玩家反应过于迟缓，正在格式化 C 盘…',
+                '⚠️ 内存泄漏：因为你太慢了',
+                '⚠️ 智商余额不足',
+                '⚠️ 系统崩溃：玩家反应时间过长',
+                '⚠️ 错误：无法处理玩家的迟钝',
+                '⚠️ 紧急：正在启动应急预案',
+                '⚠️ 危险：玩家反应速度低于最低标准',
+                '⚠️ 致命错误：大脑反应模块故障'
+            ];
+            
+            // 持续生成弹窗
+            const popupInterval = setInterval(() => {
+                if (!gameState.isPlaying) {
+                    clearInterval(popupInterval);
+                    return;
+                }
+                
+                const popup = document.createElement('div');
+                popup.className = 'system-popup';
+                popup.textContent = messages[Math.floor(Math.random() * messages.length)];
+                
+                // 随机位置
+                const x = Math.random() * (window.innerWidth - 300);
+                const y = Math.random() * (window.innerHeight - 100);
+                
+                popup.style.left = `${x}px`;
+                popup.style.top = `${y}px`;
+                
+                document.body.appendChild(popup);
+                
+                // 3秒后移除弹窗
+                setTimeout(() => {
+                    if (popup.parentNode) {
+                        popup.parentNode.removeChild(popup);
+                    }
+                }, 3000);
+            }, 500);
+        }
+        
+        // 显示最终消息
+        function showFinalMessage() {
+            // 停止音乐
+            backgroundMusic.pause();
+            backgroundMusic.currentTime = 0;
+            
+            // 停止所有动画
+            body.classList.remove('shaking', 'rainbow');
+            body.style.backgroundColor = '#000000';
+            
+            // 清除所有弹窗
+            const popups = document.querySelectorAll('.system-popup');
+            popups.forEach(popup => {
+                if (popup.parentNode) {
+                    popup.parentNode.removeChild(popup);
+                }
+            });
+            
+            // 创建最终消息
+            const finalMessage = document.createElement('div');
+            finalMessage.className = 'final-message';
+            finalMessage.innerHTML = `
+                <h2>🤡 愚人节快乐！</h2>
+                <p>你的真实反应时间：大概一个世纪！</p>
+            `;
+            
+            document.body.appendChild(finalMessage);
+            
+            // 显示重新开始按钮
+            restartButton.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>24点游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .game-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 48px;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            margin-bottom: 10px;
+        }
+        
+        .game-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            flex: 1;
+        }
+        
+        /* 设置界面 */
+        .setup-screen {
+            text-align: center;
+        }
+        
+        .setup-group {
+            margin-bottom: 30px;
+        }
+        
+        .setup-group h2 {
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .player-settings {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .player-input {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .player-input label {
+            font-weight: 500;
+            color: #34495e;
+        }
+        
+        .player-input input {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 120px;
+            text-align: center;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            font-weight: 500;
+            color: #34495e;
+        }
+        
+        .input-group input {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 200px;
+            text-align: center;
+        }
+        
+        .start-btn {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+        
+        .start-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+        
+        /* 游戏界面 */
+        .game-screen {
+            display: none;
+        }
+        
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .score-board {
+            display: flex;
+            gap: 30px;
+        }
+        
+        .player-score {
+            text-align: center;
+        }
+        
+        .player-name {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .player-score-value {
+            font-size: 24px;
+            color: #3498db;
+            font-weight: bold;
+        }
+        
+        .round-info {
+            text-align: right;
+        }
+        
+        .round-label {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .round-value {
+            font-size: 24px;
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .cards {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .card {
+            width: 120px;
+            height: 160px;
+            background: white;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            font-size: 48px;
+            font-weight: bold;
+            position: relative;
+        }
+        
+        .card.hearts, .card.diamonds {
+            color: #e74c3c;
+        }
+        
+        .card.spades, .card.clubs {
+            color: #2c3e50;
+        }
+        
+        .card-value {
+            font-size: 48px;
+            font-weight: bold;
+        }
+        
+        .card-suit {
+            font-size: 36px;
+            margin-top: 10px;
+        }
+        
+        .expression-input {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .expression-input h3 {
+            font-size: 20px;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        #expression {
+            width: 400px;
+            padding: 15px;
+            font-size: 24px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .submit-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+        }
+        
+        .message {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .message.success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+            border: 2px solid #4CAF50;
+        }
+        
+        .message.error {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border: 2px solid #e74c3c;
+        }
+        
+        .next-round-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            margin-right: 10px;
+        }
+        
+        .next-round-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+        }
+        
+        .give-up-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            margin-left: 10px;
+        }
+        
+        .give-up-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+        }
+        
+        .countdown {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        
+        /* 游戏结束界面 */
+        .game-over-screen {
+            display: none;
+            text-align: center;
+        }
+        
+        .game-over-screen h2 {
+            font-size: 36px;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        
+        .final-scores {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+        
+        .final-score {
+            text-align: center;
+        }
+        
+        .final-score .player-name {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .final-score .player-score-value {
+            font-size: 36px;
+        }
+        
+        .winner {
+            background: rgba(255, 235, 59, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .winner h3 {
+            font-size: 24px;
+            color: #f39c12;
+            margin-bottom: 10px;
+        }
+        
+        .restart-btn {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .restart-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .game-content {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 32px;
+            }
+            
+            .cards {
+                flex-wrap: wrap;
+            }
+            
+            .card {
+                width: 80px;
+                height: 110px;
+                font-size: 32px;
+            }
+            
+            .card-value {
+                font-size: 32px;
+            }
+            
+            .card-suit {
+                font-size: 24px;
+            }
+            
+            #expression {
+                width: 100%;
+                max-width: 400px;
+            }
+            
+            .score-board {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .final-scores {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="game-header">
+            <h1>🎮 24点游戏</h1>
+        </div>
+        
+        <div class="game-content">
+            <!-- 设置界面 -->
+            <div class="setup-screen" id="setup-screen">
+                <div class="setup-group">
+                    <h2>游戏设置</h2>
+                    <div class="input-group">
+                        <label for="player-count">玩家数量 (2-4)</label>
+                        <input type="number" id="player-count" min="2" max="4" value="2">
+                    </div>
+                    <div class="input-group">
+                        <label for="total-rounds">总局数</label>
+                        <input type="number" id="total-rounds" min="1" max="20" value="5">
+                    </div>
+                </div>
+                
+                <div class="setup-group">
+                    <h2>玩家按键设置</h2>
+                    <div class="player-settings" id="player-settings">
+                        <div class="player-input">
+                            <label>玩家 1</label>
+                            <input type="text" id="player1-key" value="1">
+                        </div>
+                        <div class="player-input">
+                            <label>玩家 2</label>
+                            <input type="text" id="player2-key" value="2">
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="start-btn" id="start-btn">开始游戏</button>
+            </div>
+            
+            <!-- 游戏界面 -->
+            <div class="game-screen" id="game-screen">
+                <div class="game-info">
+                    <div class="score-board" id="score-board">
+                        <!-- 分数会动态生成 -->
+                    </div>
+                    <div class="round-info">
+                        <div class="round-label">当前回合</div>
+                        <div class="round-value" id="round-value">1/5</div>
+                    </div>
+                </div>
+                
+                <div class="cards" id="cards">
+                    <!-- 卡片会动态生成 -->
+                </div>
+                
+                <div class="expression-input">
+                    <h3>输入算术表达式（使用键盘）</h3>
+                    <input type="text" id="expression" placeholder="例如：(1+2)*(3+5)">
+                    <br>
+                    <button class="submit-btn" id="submit-btn">验证</button>
+                </div>
+                
+                <div class="message" id="message"></div>
+                
+                <div class="countdown" id="countdown" style="display: none;">10</div>
+                
+                <div style="text-align: center;">
+                    <button class="next-round-btn" id="next-round-btn" style="display: none;">下一回合</button>
+                    <button class="give-up-btn" id="give-up-btn">放弃</button>
+                </div>
+            </div>
+            
+            <!-- 游戏结束界面 -->
+            <div class="game-over-screen" id="game-over-screen">
+                <h2>游戏结束！</h2>
+                <div class="final-scores" id="final-scores">
+                    <!-- 最终分数会动态生成 -->
+                </div>
+                <div class="winner" id="winner">
+                    <h3>🏆 获胜者：<span id="winner-name">玩家 1</span></h3>
+                </div>
+                <button class="restart-btn" id="restart-btn">重新开始</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 游戏状态
+        let gameState = {
+            playerCount: 2,
+            totalRounds: 5,
+            currentRound: 1,
+            players: [],
+            currentCards: [],
+            isAnswered: false,
+            lastPlayer: null, // 记录最近一次抢答的玩家
+            isLocked: false, // 抢答是否锁定
+            countdownInterval: null, // 倒计时计时器
+            countdownTime: 15 // 倒计时时间
+        };
+        
+        // DOM 元素
+        const setupScreen = document.getElementById('setup-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const playerCountInput = document.getElementById('player-count');
+        const totalRoundsInput = document.getElementById('total-rounds');
+        const playerSettings = document.getElementById('player-settings');
+        const startBtn = document.getElementById('start-btn');
+        const scoreBoard = document.getElementById('score-board');
+        const roundValue = document.getElementById('round-value');
+        const cards = document.getElementById('cards');
+        const expressionInput = document.getElementById('expression');
+        const submitBtn = document.getElementById('submit-btn');
+        const message = document.getElementById('message');
+        const nextRoundBtn = document.getElementById('next-round-btn');
+        const giveUpBtn = document.getElementById('give-up-btn');
+        const countdown = document.getElementById('countdown');
+        const finalScores = document.getElementById('final-scores');
+        const winnerName = document.getElementById('winner-name');
+        const restartBtn = document.getElementById('restart-btn');
+        
+        // 监听玩家数量变化
+        playerCountInput.addEventListener('change', updatePlayerSettings);
+        
+        // 更新玩家设置
+        function updatePlayerSettings() {
+            const count = parseInt(playerCountInput.value);
+            playerSettings.innerHTML = '';
+            
+            for (let i = 1; i <= count; i++) {
+                const playerInput = document.createElement('div');
+                playerInput.className = 'player-input';
+                playerInput.innerHTML = `
+                    <label>玩家 ${i}</label>
+                    <input type="text" id="player${i}-key" value="${i}">
+                `;
+                playerSettings.appendChild(playerInput);
+            }
+        }
+        
+        // 开始游戏
+        startBtn.addEventListener('click', startGame);
+        
+        function startGame() {
+            gameState.playerCount = parseInt(playerCountInput.value);
+            gameState.totalRounds = parseInt(totalRoundsInput.value);
+            gameState.currentRound = 1;
+            gameState.players = [];
+            
+            // 初始化玩家
+            for (let i = 1; i <= gameState.playerCount; i++) {
+                const key = document.getElementById(`player${i}-key`).value;
+                gameState.players.push({
+                    name: `玩家 ${i}`,
+                    key: key,
+                    score: 0
+                });
+            }
+            
+            // 生成分数板
+            generateScoreBoard();
+            
+            // 切换到游戏界面
+            setupScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+            
+            // 开始第一回合
+            startRound();
+        }
+        
+        // 生成分数板
+        function generateScoreBoard() {
+            scoreBoard.innerHTML = '';
+            
+            gameState.players.forEach(player => {
+                const scoreItem = document.createElement('div');
+                scoreItem.className = 'player-score';
+                scoreItem.innerHTML = `
+                    <div class="player-name">${player.name} (${player.key})</div>
+                    <div class="player-score-value" id="score-${player.key}">${player.score}</div>
+                `;
+                scoreBoard.appendChild(scoreItem);
+            });
+        }
+        
+        // 开始回合
+        function startRound() {
+            // 清除之前的倒计时
+            if (gameState.countdownInterval) {
+                clearInterval(gameState.countdownInterval);
+                countdown.style.display = 'none';
+            }
+            
+            // 重置状态
+            gameState.isAnswered = false;
+            gameState.isLocked = false;
+            gameState.lastPlayer = null;
+            message.textContent = '';
+            message.className = 'message';
+            expressionInput.value = '';
+            nextRoundBtn.style.display = 'none';
+            
+            // 更新回合信息
+            roundValue.textContent = `${gameState.currentRound}/${gameState.totalRounds}`;
+            
+            // 生成4张牌
+            generateCards();
+            
+            // 监听键盘事件
+            document.addEventListener('keydown', handleKeyPress);
+        }
+        
+        // 生成4张牌
+        function generateCards() {
+            const suits = ['hearts', 'diamonds', 'spades', 'clubs'];
+            const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+            const deck = [];
+            
+            // 生成一副牌
+            for (const suit of suits) {
+                for (const value of values) {
+                    deck.push({ suit, value });
+                }
+            }
+            
+            // 洗牌
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+            
+            // 抽取4张牌
+            gameState.currentCards = deck.slice(0, 4);
+            
+            // 显示牌
+            displayCards();
+        }
+        
+        // 显示牌
+        function displayCards() {
+            cards.innerHTML = '';
+            
+            gameState.currentCards.forEach(card => {
+                const cardElement = document.createElement('div');
+                cardElement.className = `card ${card.suit}`;
+                
+                let displayValue = card.value;
+                let suitSymbol = '';
+                
+                // 转换花色符号
+                switch (card.suit) {
+                    case 'hearts': suitSymbol = '♥'; break;
+                    case 'diamonds': suitSymbol = '♦'; break;
+                    case 'spades': suitSymbol = '♠'; break;
+                    case 'clubs': suitSymbol = '♣'; break;
+                }
+                
+                cardElement.innerHTML = `
+                    <div class="card-value">${displayValue}</div>
+                    <div class="card-suit">${suitSymbol}</div>
+                `;
+                
+                cards.appendChild(cardElement);
+            });
+        }
+        
+        // 处理键盘事件
+        function handleKeyPress(e) {
+            // 如果已经回答过或已锁定，不处理
+            if (gameState.isAnswered || gameState.isLocked) return;
+            
+            // 检查是否是玩家的抢答键
+            const player = gameState.players.find(p => p.key === e.key);
+            if (player) {
+                // 记录最近一次抢答的玩家
+                gameState.lastPlayer = player;
+                
+                // 锁定抢答
+                gameState.isLocked = true;
+                
+                // 高亮该玩家的分数
+                const scoreElement = document.getElementById(`score-${player.key}`);
+                scoreElement.style.color = '#f39c12';
+                scoreElement.style.transform = 'scale(1.2)';
+                
+                // 1秒后恢复
+                setTimeout(() => {
+                    scoreElement.style.color = '#3498db';
+                    scoreElement.style.transform = 'scale(1)';
+                }, 1000);
+                
+                // 开始倒计时
+                startCountdown();
+            }
+        }
+        
+        // 开始倒计时
+        function startCountdown() {
+            gameState.countdownTime = 15;
+            countdown.textContent = gameState.countdownTime;
+            countdown.style.display = 'block';
+            
+            // 清除之前的计时器
+            if (gameState.countdownInterval) {
+                clearInterval(gameState.countdownInterval);
+            }
+            
+            // 设置新的计时器
+            gameState.countdownInterval = setInterval(() => {
+                gameState.countdownTime--;
+                countdown.textContent = gameState.countdownTime;
+                
+                if (gameState.countdownTime <= 0) {
+                    clearInterval(gameState.countdownInterval);
+                    countdown.style.display = 'none';
+                    
+                    // 倒计时结束，给抢答的玩家扣分
+                    if (gameState.lastPlayer && !gameState.isAnswered) {
+                        gameState.lastPlayer.score = Math.max(0, gameState.lastPlayer.score - 1);
+                        // 更新分数显示
+                        const scoreElement = document.getElementById(`score-${gameState.lastPlayer.key}`);
+                        scoreElement.textContent = gameState.lastPlayer.score;
+                        showMessage(`${gameState.lastPlayer.name} 超时，扣1分`, 'error');
+                        gameState.isAnswered = true;
+                        nextRoundBtn.style.display = 'inline-block';
+                    }
+                }
+            }, 1000);
+        }
+        
+        // 验证表达式
+        submitBtn.addEventListener('click', validateExpression);
+        
+        function validateExpression() {
+            const expression = expressionInput.value;
+            
+            // 检查表达式是否包含所有卡片
+            const cardValues = gameState.currentCards.map(card => {
+                if (card.value === 'A') return '1';
+                if (card.value === 'J') return '11';
+                if (card.value === 'Q') return '12';
+                if (card.value === 'K') return '13';
+                return card.value;
+            });
+            
+            // 检查每个卡片值是否在表达式中
+            for (const value of cardValues) {
+                if (!expression.includes(value)) {
+                    showMessage('表达式必须包含所有卡片的值', 'error');
+                    return;
+                }
+            }
+            
+            // 计算表达式结果
+            try {
+                // 替换JQKA为数字
+                let evalExpression = expression
+                    .replace(/A/g, '1')
+                    .replace(/J/g, '11')
+                    .replace(/Q/g, '12')
+                    .replace(/K/g, '13');
+                
+                const result = eval(evalExpression);
+                
+                if (Math.abs(result - 24) < 0.001) {
+                    // 清除倒计时
+                    if (gameState.countdownInterval) {
+                        clearInterval(gameState.countdownInterval);
+                        countdown.style.display = 'none';
+                    }
+                    
+                    // 给最近一次抢答的玩家加分
+                    if (gameState.lastPlayer) {
+                        gameState.lastPlayer.score++;
+                        // 更新分数显示
+                        const scoreElement = document.getElementById(`score-${gameState.lastPlayer.key}`);
+                        scoreElement.textContent = gameState.lastPlayer.score;
+                        showMessage(`恭喜 ${gameState.lastPlayer.name}！正确！+1分`, 'success');
+                    } else {
+                        showMessage('恭喜！正确！', 'success');
+                    }
+                    gameState.isAnswered = true;
+                    nextRoundBtn.style.display = 'inline-block';
+                } else {
+                    showMessage(`结果是 ${result}，不是24，请再试一次`, 'error');
+                }
+            } catch (e) {
+                showMessage('表达式无效，请检查输入', 'error');
+            }
+        }
+        
+        // 显示消息
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = `message ${type}`;
+        }
+        
+        // 放弃按钮
+        giveUpBtn.addEventListener('click', giveUp);
+        
+        function giveUp() {
+            // 清除倒计时
+            if (gameState.countdownInterval) {
+                clearInterval(gameState.countdownInterval);
+                countdown.style.display = 'none';
+            }
+            
+            // 重新生成牌
+            generateCards();
+            
+            // 重置状态
+            gameState.isAnswered = false;
+            gameState.isLocked = false;
+            gameState.lastPlayer = null;
+            message.textContent = '';
+            message.className = 'message';
+            expressionInput.value = '';
+        }
+        
+        // 下一回合
+        nextRoundBtn.addEventListener('click', nextRound);
+        
+        function nextRound() {
+            gameState.currentRound++;
+            
+            if (gameState.currentRound > gameState.totalRounds) {
+                endGame();
+            } else {
+                startRound();
+            }
+        }
+        
+        // 结束游戏
+        function endGame() {
+            // 计算获胜者
+            let maxScore = 0;
+            let winners = [];
+            
+            gameState.players.forEach(player => {
+                if (player.score > maxScore) {
+                    maxScore = player.score;
+                    winners = [player.name];
+                } else if (player.score === maxScore) {
+                    winners.push(player.name);
+                }
+            });
+            
+            // 显示最终分数
+            finalScores.innerHTML = '';
+            gameState.players.forEach(player => {
+                const scoreItem = document.createElement('div');
+                scoreItem.className = 'final-score';
+                scoreItem.innerHTML = `
+                    <div class="player-name">${player.name}</div>
+                    <div class="player-score-value">${player.score}</div>
+                `;
+                finalScores.appendChild(scoreItem);
+            });
+            
+            // 显示获胜者
+            winnerName.textContent = winners.join(' 和 ');
+            
+            // 切换到游戏结束界面
+            gameScreen.style.display = 'none';
+            gameOverScreen.style.display = 'block';
+        }
+        
+        // 重新开始
+        restartBtn.addEventListener('click', restartGame);
+        
+        function restartGame() {
+            gameOverScreen.style.display = 'none';
+            setupScreen.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

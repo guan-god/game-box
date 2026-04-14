@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>形状等分切割 - Shape Splitter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .game-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .game-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 48px;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            margin-bottom: 10px;
+        }
+        
+        .game-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .stat-item {
+            text-align: center;
+            color: #fff;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffeb3b;
+        }
+        
+        .game-content {
+            display: flex;
+            flex: 1;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .canvas-container {
+            flex: 2;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #gameCanvas {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            cursor: crosshair;
+        }
+        
+        .canvas-info {
+            margin-top: 20px;
+            text-align: center;
+            color: #fff;
+        }
+        
+        .controls {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .control-group {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .control-group:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .control-group h3 {
+            color: #ffeb3b;
+            margin-bottom: 10px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .difficulty-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .difficulty-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.3);
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        
+        .difficulty-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        .difficulty-btn.active {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .action-btn.secondary {
+            background: linear-gradient(45deg, #f44336, #da190b);
+        }
+        
+        .result {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            color: #fff;
+        }
+        
+        .result-item {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .result-label {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .result-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffeb3b;
+        }
+        
+        .score {
+            font-size: 36px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            color: #ffeb3b;
+            text-shadow: 0 0 10px rgba(255, 235, 59, 0.5);
+        }
+        
+        .percentage-chart {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+        
+        .chart-title {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .chart-container {
+            display: flex;
+            height: 40px;
+            border-radius: 20px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .chart-left {
+            flex: 0.5;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .chart-right {
+            flex: 0.5;
+            background: linear-gradient(90deg, #f44336, #da190b);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .game-footer {
+            text-align: center;
+            color: #fff;
+            padding: 20px;
+            font-size: 14px;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            color: #fff;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #ffeb3b;
+        }
+        
+        .modal p {
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .modal-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.3);
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        .modal-btn.primary {
+            background: #ffeb3b;
+            color: #333;
+        }
+        
+        @media (max-width: 768px) {
+            .game-content {
+                flex-direction: column;
+            }
+            
+            .game-stats {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            h1 {
+                font-size: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>🥬 形状等分切割 🎯</h1>
+            <div class="game-stats">
+                <div class="stat-item">
+                    <div>最佳得分</div>
+                    <div class="stat-value" id="bestScore">0</div>
+                </div>
+                <div class="stat-item">
+                    <div>尝试次数</div>
+                    <div class="stat-value" id="attempts">0</div>
+                </div>
+                <div class="stat-item">
+                    <div>当前难度</div>
+                    <div class="stat-value" id="currentDifficulty">简单</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-content">
+            <div class="canvas-container">
+                <canvas id="gameCanvas" width="600" height="400"></canvas>
+                <div class="canvas-info">
+                    <p id="instruction">拖动鼠标绘制一条直线来切割形状</p>
+                    <p id="status">准备就绪</p>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <h3>🥕 难度选择</h3>
+                    <div class="difficulty-buttons">
+                        <button class="difficulty-btn active" data-difficulty="easy">简单</button>
+                        <button class="difficulty-btn" data-difficulty="medium">中等</button>
+                        <button class="difficulty-btn" data-difficulty="hard">困难</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3>🎮 游戏控制</h3>
+                    <div class="action-buttons">
+                        <button class="action-btn" onclick="generateShape()">🥑 新形状</button>
+                        <button class="action-btn secondary" onclick="resetGame()">🔄 重置</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3>📊 切割结果</h3>
+                    <div class="result">
+                        <div class="result-item">
+                            <span class="result-label">左侧百分比:</span>
+                            <span class="result-value" id="leftArea">0%</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">右侧百分比:</span>
+                            <span class="result-value" id="rightArea">0%</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">误差:</span>
+                            <span class="result-value" id="error">0%</span>
+                        </div>
+                        <div class="score" id="score">0</div>
+                    </div>
+                    <div class="percentage-chart">
+                        <div class="chart-title">面积比例</div>
+                        <div class="chart-container">
+                            <div class="chart-left" id="chartLeft">50%</div>
+                            <div class="chart-right" id="chartRight">50%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-footer">
+            <p>© 2026 形状等分切割游戏 | 拖动鼠标绘制切割线</p>
+        </div>
+    </div>
+    
+    <div class="modal" id="startModal">
+        <div class="modal-content">
+            <h2>🎮 欢迎来到形状等分切割！</h2>
+            <p>你的目标是通过一刀切，将水果蔬菜形状分割为面积相等的两部分。</p>
+            <p>拖动鼠标绘制一条直线来切割形状，系统会自动计算面积并给出评分。</p>
+            <div class="modal-buttons">
+                <button class="modal-btn primary" onclick="startGame()">开始游戏</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

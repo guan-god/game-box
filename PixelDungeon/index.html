@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>像素地牢探险 - Pixel Dungeon Adventure</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        
+        .game-container {
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.3);
+        }
+        
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .stats {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 14px;
+            text-shadow: 2px 2px 0 #000;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            border: 2px solid #4a4a6a;
+        }
+        
+        .stats div {
+            margin: 3px 0;
+        }
+        
+        .hp-bar {
+            width: 100px;
+            height: 10px;
+            background: #333;
+            border: 1px solid #666;
+            margin-top: 5px;
+        }
+        
+        .hp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4444, #ff6666);
+            transition: width 0.3s;
+        }
+        
+        .xp-bar {
+            width: 100px;
+            height: 8px;
+            background: #333;
+            border: 1px solid #666;
+            margin-top: 3px;
+        }
+        
+        .xp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #44ff44, #66ff66);
+            transition: width 0.3s;
+        }
+        
+        .inventory {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            display: flex;
+            gap: 5px;
+        }
+        
+        .item-slot {
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #4a4a6a;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .item-slot.active {
+            border-color: #ffff00;
+            box-shadow: 0 0 10px #ffff00;
+        }
+        
+        .message-log {
+            position: absolute;
+            bottom: 60px;
+            left: 10px;
+            right: 10px;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #4a4a6a;
+            border-radius: 5px;
+            padding: 10px;
+            color: #fff;
+            font-size: 12px;
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+        
+        .message {
+            margin: 2px 0;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .message.damage { color: #ff6666; }
+        .message.heal { color: #66ff66; }
+        .message.item { color: #ffff66; }
+        .message.level { color: #66ffff; }
+        
+        .minimap {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #4a4a6a;
+            border-radius: 5px;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: #888;
+            font-size: 11px;
+            text-align: right;
+        }
+        
+        .title-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            pointer-events: auto;
+        }
+        
+        .title-screen h1 {
+            font-size: 48px;
+            color: #ffff00;
+            text-shadow: 4px 4px 0 #ff6600;
+            margin-bottom: 40px;
+            animation: pulse 2s infinite;
+        }
+        
+        .title-buttons {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .guide-screen,
+        .settings-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            pointer-events: auto;
+            padding: 20px;
+        }
+        
+        .guide-screen h2,
+        .settings-screen h2 {
+            font-size: 36px;
+            color: #ffff00;
+            text-shadow: 3px 3px 0 #ff6600;
+            margin-bottom: 30px;
+        }
+        
+        .guide-content {
+            max-height: 70vh;
+            overflow-y: auto;
+            width: 90%;
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .guide-section {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .guide-section h3 {
+            color: #66ffff;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .guide-section ul {
+            list-style: none;
+        }
+        
+        .guide-section li {
+            margin: 5px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .guide-section li::before {
+            content: "•";
+            color: #ffff00;
+            position: absolute;
+            left: 0;
+        }
+        
+        .settings-content {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+        }
+        
+        .setting-item {
+            margin: 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .setting-item label {
+            font-size: 18px;
+        }
+        
+        .setting-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .setting-item select {
+            padding: 8px 12px;
+            font-size: 16px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #666;
+            border-radius: 5px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .title-screen p {
+            font-size: 16px;
+            color: #aaa;
+            margin: 10px 0;
+        }
+        
+        .start-btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 24px;
+            background: linear-gradient(180deg, #ff6600, #ff3300);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
+            box-shadow: 0 5px 0 #cc2200, 0 10px 20px rgba(0,0,0,0.5);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        
+        .start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 0 #cc2200, 0 12px 25px rgba(0,0,0,0.5);
+        }
+        
+        .start-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #cc2200, 0 5px 10px rgba(0,0,0,0.5);
+        }
+        
+        .game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            pointer-events: auto;
+        }
+        
+        .game-over h2 {
+            font-size: 36px;
+            color: #ff4444;
+            text-shadow: 3px 3px 0 #660000;
+            margin-bottom: 20px;
+        }
+        
+        .game-over .stats-summary {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .floor-indicator {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffff00;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 20px;
+            border-radius: 20px;
+            border: 2px solid #ffff00;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div class="ui-overlay">
+            <div class="floor-indicator">第 <span id="floorNum">1</span> 层</div>
+            
+            <div class="stats">
+                <div>❤️ 生命值: <span id="hp">100</span>/<span id="maxHp">100</span></div>
+                <div class="hp-bar"><div class="hp-fill" id="hpBar" style="width: 100%"></div></div>
+                <div>⚔️ 攻击: <span id="atk">10</span></div>
+                <div>🛡️ 防御: <span id="def">5</span></div>
+                <div>💰 金币: <span id="gold">0</span></div>
+                <div>⭐ 等级: <span id="level">1</span></div>
+                <div class="xp-bar"><div class="xp-fill" id="xpBar" style="width: 0%"></div></div>
+            </div>
+            
+            <canvas class="minimap" id="minimap" width="150" height="150"></canvas>
+            
+            <div class="message-log" id="messageLog"></div>
+            
+            <div class="inventory" id="inventory">
+                <div class="item-slot active" data-slot="0"></div>
+                <div class="item-slot" data-slot="1"></div>
+                <div class="item-slot" data-slot="2"></div>
+                <div class="item-slot" data-slot="3"></div>
+                <div class="item-slot" data-slot="4"></div>
+            </div>
+            
+            <div class="controls">
+                WASD/方向键: 移动<br>
+                空格: 使用物品<br>
+                E: 交互/拾取<br>
+                数字键1-5: 选择物品
+            </div>
+        </div>
+        
+        <div class="title-screen" id="titleScreen">
+            <h1>🔥 像素地牢探险 🔥</h1>
+            <div class="title-buttons">
+                <button class="start-btn" onclick="startGame()">开始冒险</button>
+                <button class="start-btn" onclick="showGuide()" style="margin-top: 15px; font-size: 18px;">游戏引导</button>
+                <button class="start-btn" onclick="showSettings()" style="margin-top: 15px; font-size: 18px;">设置</button>
+            </div>
+        </div>
+        
+        <div class="guide-screen" id="guideScreen" style="display: none;">
+            <h2>🎮 游戏引导</h2>
+            <div class="guide-content">
+                <div class="guide-section">
+                    <h3>操作说明</h3>
+                    <ul>
+                        <li><strong>WASD/方向键</strong>：移动角色</li>
+                        <li><strong>空格键</strong>：使用选中的物品</li>
+                        <li><strong>E键</strong>：拾取物品或进入下一层</li>
+                        <li><strong>数字键1-5</strong>：选择物品栏中的物品</li>
+                    </ul>
+                </div>
+                <div class="guide-section">
+                    <h3>核心机制</h3>
+                    <ul>
+                        <li><strong>随机地图</strong>：每层地牢都是随机生成的</li>
+                        <li><strong>战斗系统</strong>：靠近敌人自动攻击</li>
+                        <li><strong>升级系统</strong>：击败敌人获得经验值</li>
+                        <li><strong>物品系统</strong>：收集并使用各种道具</li>
+                        <li><strong>视野系统</strong>：只能看到周围的区域</li>
+                    </ul>
+                </div>
+                <div class="guide-section">
+                    <h3>敌人种类</h3>
+                    <ul>
+                        <li>🟢 史莱姆 - 弱小但数量多</li>
+                        <li>👺 哥布林 - 中等强度</li>
+                        <li>💀 骷髅兵 - 较高攻击力</li>
+                        <li>🦇 蝙蝠 - 速度快</li>
+                        <li>🐀 老鼠 - 弱小但烦人</li>
+                        <li>🕷️ 蜘蛛 - 有毒性攻击</li>
+                        <li>👻 幽灵 - 高防御</li>
+                        <li>👹 兽人 - 强大的近战敌人</li>
+                        <li>👿 恶魔 - 高攻击力</li>
+                        <li>🐉 龙 - 终极 boss</li>
+                    </ul>
+                </div>
+                <div class="guide-section">
+                    <h3>物品系统</h3>
+                    <ul>
+                        <li>❤️ 生命药水 - 恢复生命值</li>
+                        <li>💖 大生命药水 - 恢复大量生命值</li>
+                        <li>💪 力量药水 - 提升攻击力</li>
+                        <li>🛡️ 防御药水 - 提升防御力</li>
+                        <li>💰 金币袋 - 获得金币</li>
+                        <li>📖 经验书 - 获得经验值</li>
+                        <li>📜 传送卷轴 - 随机传送</li>
+                        <li>🏹 弓箭 - 远程攻击</li>
+                    </ul>
+                </div>
+            </div>
+            <button class="start-btn" onclick="hideGuide()" style="margin-top: 20px;">返回</button>
+        </div>
+        
+        <div class="settings-screen" id="settingsScreen" style="display: none;">
+            <h2>⚙️ 设置</h2>
+            <div class="settings-content">
+                <div class="setting-item">
+                    <label>音效</label>
+                    <input type="checkbox" id="soundToggle" checked>
+                </div>
+                <div class="setting-item">
+                    <label>音乐</label>
+                    <input type="checkbox" id="musicToggle" checked>
+                </div>
+                <div class="setting-item">
+                    <label>难度</label>
+                    <select id="difficulty">
+                        <option value="easy">简单</option>
+                        <option value="normal" selected>普通</option>
+                        <option value="hard">困难</option>
+                    </select>
+                </div>
+            </div>
+            <button class="start-btn" onclick="hideSettings()" style="margin-top: 20px;">返回</button>
+        </div>
+        
+        <div class="game-over" id="gameOver">
+            <h2>💀 游戏结束 💀</h2>
+            <div class="stats-summary">
+                <p>到达层数: <span id="finalFloor">1</span></p>
+                <p>击败敌人: <span id="enemiesKilled">0</span></p>
+                <p>收集金币: <span id="finalGold">0</span></p>
+                <p>最终等级: <span id="finalLevel">1</span></p>
+            </div>
+            <button class="start-btn" onclick="restartGame()">再次挑战</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

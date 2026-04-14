@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>创新推箱子 - Innovative Sokoban</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+            color: #fff;
+        }
+        
+        .game-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .game-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 36px;
+            color: #00ffcc;
+            text-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
+            margin-bottom: 10px;
+        }
+        
+        .level-info {
+            font-size: 18px;
+            color: #aaa;
+        }
+        
+        .game-grid {
+            display: grid;
+            gap: 2px;
+            background: #333;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.3);
+        }
+        
+        .grid-cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        
+        /* 地面类型 */
+        .floor {
+            background: #2a2a2a;
+        }
+        
+        .wall {
+            background: #555;
+            border-radius: 4px;
+        }
+        
+        .target {
+            background: radial-gradient(circle, rgba(0,255,204,0.3) 0%, rgba(0,255,204,0.1) 70%);
+        }
+        
+        .red-target {
+            background: radial-gradient(circle, rgba(255,0,0,0.3) 0%, rgba(255,0,0,0.1) 70%);
+        }
+        
+        .blue-target {
+            background: radial-gradient(circle, rgba(0,0,255,0.3) 0%, rgba(0,0,255,0.1) 70%);
+        }
+        
+        .green-target {
+            background: radial-gradient(circle, rgba(0,255,0,0.3) 0%, rgba(0,255,0,0.1) 70%);
+        }
+        
+        .platform {
+            background: linear-gradient(45deg, #666, #888);
+        }
+        
+        .conveyor-right {
+            background: linear-gradient(90deg, #444, #666);
+        }
+        
+        .conveyor-left {
+            background: linear-gradient(270deg, #444, #666);
+        }
+        
+        .conveyor-up {
+            background: linear-gradient(0deg, #444, #666);
+        }
+        
+        .conveyor-down {
+            background: linear-gradient(180deg, #444, #666);
+        }
+        
+        .button {
+            background: #ff8800;
+            border-radius: 50%;
+        }
+        
+        .button.pressed {
+            background: #ffaa44;
+            transform: scale(0.9);
+        }
+        
+        /* 游戏元素 */
+        .player {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            animation: pulse 2s infinite;
+        }
+        
+        .box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+        }
+        
+        .box.red {
+            color: #ff4444;
+        }
+        
+        .box.blue {
+            color: #4444ff;
+        }
+        
+        .box.green {
+            color: #44ff44;
+        }
+        
+        .box.on-target {
+            animation: glow 1.5s infinite alternate;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+        
+        @keyframes glow {
+            from { filter: brightness(1); }
+            to { filter: brightness(1.5); }
+        }
+        
+        /* 游戏控制 */
+        .game-controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .control-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 60px);
+            grid-template-rows: repeat(3, 60px);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #00ffcc;
+            border-radius: 8px;
+            color: #00ffcc;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .control-btn:hover {
+            background: rgba(0, 255, 204, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+        
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .btn-up {
+            grid-row: 1;
+            grid-column: 2;
+        }
+        
+        .btn-left {
+            grid-row: 2;
+            grid-column: 1;
+        }
+        
+        .btn-down {
+            grid-row: 3;
+            grid-column: 2;
+        }
+        
+        .btn-right {
+            grid-row: 2;
+            grid-column: 3;
+        }
+        
+        .game-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .game-btn {
+            padding: 10px 20px;
+            background: linear-gradient(45deg, #00ffcc, #009999);
+            border: none;
+            border-radius: 5px;
+            color: #1a1a2e;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .game-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 204, 0.4);
+        }
+        
+        .game-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* 消息提示 */
+        .message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 255, 204, 0.9);
+            color: #1a1a2e;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        
+        .message.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        /* 胜利界面 */
+        .victory-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+        
+        .victory-content {
+            text-align: center;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 40px;
+            border-radius: 20px;
+            border: 2px solid #00ffcc;
+            box-shadow: 0 0 50px rgba(0, 255, 204, 0.5);
+        }
+        
+        .victory-title {
+            font-size: 48px;
+            color: #00ffcc;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(0, 255, 204, 0.7);
+        }
+        
+        .victory-message {
+            font-size: 24px;
+            color: #aaa;
+            margin-bottom: 30px;
+        }
+        
+        .victory-stats {
+            margin-bottom: 30px;
+            font-size: 18px;
+        }
+        
+        .stats-item {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-header">
+        <h1>🎮 创新推箱子 🎮</h1>
+        <div class="level-info">
+            关卡: <span id="level">1</span> | 步数: <span id="moves">0</span> | 时间: <span id="time">0</span>s
+        </div>
+    </div>
+    
+    <div class="game-container">
+        <div class="game-grid" id="gameGrid"></div>
+    </div>
+    
+    <div class="game-controls">
+        <div class="control-buttons">
+            <button class="control-btn btn-up" onclick="movePlayer(0, -1)">↑</button>
+            <button class="control-btn btn-left" onclick="movePlayer(-1, 0)">←</button>
+            <button class="control-btn btn-down" onclick="movePlayer(0, 1)">↓</button>
+            <button class="control-btn btn-right" onclick="movePlayer(1, 0)">→</button>
+        </div>
+        
+        <div class="game-buttons">
+            <button class="game-btn" onclick="resetLevel()">重置</button>
+            <button class="game-btn" onclick="nextLevel()">下一关</button>
+            <button class="game-btn" onclick="prevLevel()">上一关</button>
+        </div>
+    </div>
+    
+    <div class="message" id="message"></div>
+    
+    <div class="victory-screen" id="victoryScreen">
+        <div class="victory-content">
+            <div class="victory-title">🎉 恭喜通关！ 🎉</div>
+            <div class="victory-message" id="victoryMessage"></div>
+            <div class="victory-stats">
+                <div class="stats-item">步数: <span id="victoryMoves">0</span></div>
+                <div class="stats-item">时间: <span id="victoryTime">0</span>秒</div>
+                <div class="stats-item">关卡: <span id="victoryLevel">1</span></div>
+            </div>
+            <button class="game-btn" onclick="nextLevel()">下一关</button>
+            <button class="game-btn" onclick="resetLevel()">重玩</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>连连看</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .header {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .stat-box {
+            background: linear-gradient(145deg, #1e2a4a, #0d1b2a);
+            border-radius: 15px;
+            padding: 15px 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-label {
+            color: #7ec8e3;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #fff;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(126, 200, 227, 0.5);
+        }
+
+        .game-board-wrapper {
+            background: linear-gradient(145deg, #1e2a4a, #0d1b2a);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 
+                0 25px 50px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        #game-board {
+            display: grid;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .tile {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            user-select: none;
+        }
+
+        .tile:not(.empty):hover {
+            box-shadow: 0 0 15px currentColor;
+        }
+
+        .tile.selected {
+            box-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+        }
+
+        .tile.empty {
+            background: rgba(255, 255, 255, 0.02);
+            cursor: default;
+        }
+
+        .tile.matched {
+            animation: matchPop 0.3s ease forwards;
+        }
+
+        @keyframes matchPop {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.5; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        .tile.hint {
+            animation: hintPulse 0.5s ease-in-out infinite;
+        }
+
+        @keyframes hintPulse {
+            0%, 100% { box-shadow: 0 0 10px currentColor; }
+            50% { box-shadow: 0 0 30px currentColor, 0 0 50px currentColor; }
+        }
+
+        .tile-color-0 { background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: #ff6b6b; }
+        .tile-color-1 { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #ffd700; }
+        .tile-color-2 { background: linear-gradient(135deg, #69f0ae, #00c853); color: #69f0ae; }
+        .tile-color-3 { background: linear-gradient(135deg, #00f5ff, #0099cc); color: #00f5ff; }
+        .tile-color-4 { background: linear-gradient(135deg, #e040fb, #9c27b0); color: #e040fb; }
+        .tile-color-5 { background: linear-gradient(135deg, #ff80ab, #f50057); color: #ff80ab; }
+        .tile-color-6 { background: linear-gradient(135deg, #b388ff, #7c4dff); color: #b388ff; }
+        .tile-color-7 { background: linear-gradient(135deg, #84ffff, #00bcd4); color: #84ffff; }
+
+        .path-line {
+            position: absolute;
+            background: linear-gradient(90deg, #00f5ff, #ff6b6b);
+            border-radius: 3px;
+            z-index: 100;
+            pointer-events: none;
+            animation: pathFade 0.4s ease forwards;
+        }
+
+        @keyframes pathFade {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00c9ff, #92fe9d);
+            color: #0a0a1a;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 201, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: #fff;
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.4);
+        }
+
+        .game-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .overlay-content {
+            background: linear-gradient(145deg, #1e2a4a, #0d1b2a);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .overlay-title {
+            font-size: 42px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px currentColor;
+        }
+
+        .overlay-title.win {
+            color: #ffd700;
+            animation: winPulse 1s infinite;
+        }
+
+        @keyframes winPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .overlay-subtitle {
+            color: #8892b0;
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+
+        .message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffd700;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .message.show {
+            animation: messageShow 1s forwards;
+        }
+
+        @keyframes messageShow {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1) translateY(-30px); }
+        }
+
+        .timer-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .timer-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ffd700, #69f0ae);
+            transition: width 1s linear;
+        }
+
+        .timer-fill.critical {
+            background: linear-gradient(90deg, #ff0000, #ff6b6b);
+            animation: timerPulse 0.5s infinite;
+        }
+
+        @keyframes timerPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <div class="stat-box">
+                <div class="stat-label">分数</div>
+                <div class="stat-value" id="score">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">剩余</div>
+                <div class="stat-value" id="remaining">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">关卡</div>
+                <div class="stat-value" id="level">1</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">时间</div>
+                <div class="stat-value" id="timer">120</div>
+                <div class="timer-bar">
+                    <div class="timer-fill" id="timer-fill" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-board-wrapper">
+            <div id="game-board"></div>
+            <div class="message" id="message"></div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-primary" id="start-btn">开始游戏</button>
+            <button class="btn btn-secondary" id="hint-btn">提示</button>
+            <button class="btn btn-warning" id="shuffle-btn">重排</button>
+        </div>
+    </div>
+    
+    <div class="game-overlay" id="start-overlay">
+        <div class="overlay-content">
+            <div class="overlay-title" style="color: #00f5ff;">连连看</div>
+            <div class="overlay-subtitle">连接相同图案的方块，消除所有方块获胜！</div>
+            <button class="btn btn-primary" id="game-start-btn">开始游戏</button>
+        </div>
+    </div>
+    
+    <div class="game-overlay" id="win-overlay" style="display: none;">
+        <div class="overlay-content">
+            <div class="overlay-title win">🎉 恭喜过关！</div>
+            <div class="overlay-subtitle">得分: <span id="win-score">0</span></div>
+            <button class="btn btn-primary" id="next-level-btn">下一关</button>
+        </div>
+    </div>
+    
+    <div class="game-overlay" id="lose-overlay" style="display: none;">
+        <div class="overlay-content">
+            <div class="overlay-title" style="color: #ff6b6b;">时间到！</div>
+            <div class="overlay-subtitle">最终得分: <span id="lose-score">0</span></div>
+            <button class="btn btn-primary" id="retry-btn">重新开始</button>
+        </div>
+    </div>
+
+    <script>
+        const ROWS = 8;
+        const COLS = 10;
+        const TOTAL_TILES = ROWS * COLS;
+        const COLORS = 8;
+        const EMOJIS = ['🍎', '🍊', '🍋', '🍇', '🍓', '🍑', '🥝', '🍒'];
+        const INITIAL_TIME = 120;
+
+        let board = [];
+        let selectedTile = null;
+        let score = 0;
+        let level = 1;
+        let remaining = 0;
+        let timer = INITIAL_TIME;
+        let timerInterval = null;
+        let gameState = 'start';
+        let hintsUsed = 0;
+        let shufflesUsed = 0;
+
+        const gameBoard = document.getElementById('game-board');
+        const scoreDisplay = document.getElementById('score');
+        const remainingDisplay = document.getElementById('remaining');
+        const levelDisplay = document.getElementById('level');
+        const timerDisplay = document.getElementById('timer');
+        const timerFill = document.getElementById('timer-fill');
+        const messageEl = document.getElementById('message');
+
+        function initBoard() {
+            gameBoard.style.gridTemplateColumns = `repeat(${COLS}, 50px)`;
+            gameBoard.style.gridTemplateRows = `repeat(${ROWS}, 50px)`;
+            
+            board = [];
+            const pairs = [];
+            const numPairs = TOTAL_TILES / 2;
+            
+            for (let i = 0; i < numPairs; i++) {
+                const color = i % COLORS;
+                pairs.push(color, color);
+            }
+            
+            shuffleArray(pairs);
+            
+            for (let r = 0; r < ROWS; r++) {
+                board[r] = [];
+                for (let c = 0; c < COLS; c++) {
+                    board[r][c] = pairs[r * COLS + c];
+                }
+            }
+            
+            remaining = TOTAL_TILES;
+            renderBoard();
+            updateUI();
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function renderBoard() {
+            gameBoard.innerHTML = '';
+            
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    tile.dataset.row = r;
+                    tile.dataset.col = c;
+                    
+                    if (board[r][c] !== null) {
+                        const colorIndex = board[r][c];
+                        tile.classList.add(`tile-color-${colorIndex}`);
+                        tile.textContent = EMOJIS[colorIndex];
+                        tile.addEventListener('click', () => handleTileClick(r, c));
+                    } else {
+                        tile.classList.add('empty');
+                    }
+                    
+                    gameBoard.appendChild(tile);
+                }
+            }
+        }
+
+        function handleTileClick(row, col) {
+            if (gameState !== 'playing') return;
+            if (board[row][col] === null) return;
+
+            const tile = getTileElement(row, col);
+            
+            if (selectedTile) {
+                if (selectedTile.row === row && selectedTile.col === col) {
+                    tile.classList.remove('selected');
+                    selectedTile = null;
+                    return;
+                }
+                
+                if (board[row][col] === board[selectedTile.row][selectedTile.col]) {
+                    const path = findPath(selectedTile.row, selectedTile.col, row, col);
+                    
+                    if (path) {
+                        drawPath(path);
+                        
+                        const savedSelected = { ...selectedTile };
+                        const tile1 = getTileElement(selectedTile.row, selectedTile.col);
+                        const tile2 = getTileElement(row, col);
+                        
+                        selectedTile = null;
+                        
+                        setTimeout(() => {
+                            tile1.classList.add('matched');
+                            tile2.classList.add('matched');
+                            
+                            setTimeout(() => {
+                                board[savedSelected.row][savedSelected.col] = null;
+                                board[row][col] = null;
+                                remaining -= 2;
+                                score += 10 + Math.floor((timer / INITIAL_TIME) * 20);
+                                
+                                updateUI();
+                                renderBoard();
+                                
+                                if (remaining === 0) {
+                                    winLevel();
+                                } else if (!hasValidMoves()) {
+                                    shuffleBoard();
+                                }
+                            }, 300);
+                        }, 400);
+                        
+                        return;
+                    }
+                }
+                
+                getTileElement(selectedTile.row, selectedTile.col).classList.remove('selected');
+                selectedTile = null;
+            }
+            
+            tile.classList.add('selected');
+            selectedTile = { row, col };
+        }
+
+        function getTileElement(row, col) {
+            return gameBoard.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+        }
+
+        function findPath(r1, c1, r2, c2) {
+            const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+            const queue = [{ r: r1, c: c1, dir: -1, turns: 0, path: [{ r: r1, c: c1 }] }];
+            const visited = new Set();
+            visited.add(`${r1},${c1}`);
+            
+            while (queue.length > 0) {
+                const current = queue.shift();
+                
+                if (current.r === r2 && current.c === c2) {
+                    return current.path;
+                }
+                
+                for (let d = 0; d < 4; d++) {
+                    const [dr, dc] = directions[d];
+                    const nr = current.r + dr;
+                    const nc = current.c + dc;
+                    
+                    if (nr < -1 || nr > ROWS || nc < -1 || nc > COLS) continue;
+                    
+                    const isTarget = (nr === r2 && nc === c2);
+                    const isOutside = (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS);
+                    const isEmpty = isOutside || board[nr][nc] === null;
+                    
+                    if (!isTarget && !isEmpty) continue;
+                    
+                    const key = `${nr},${nc}`;
+                    if (visited.has(key)) continue;
+                    visited.add(key);
+                    
+                    const newPath = [...current.path, { r: nr, c: nc }];
+                    queue.push({
+                        r: nr,
+                        c: nc,
+                        dir: d,
+                        turns: 0,
+                        path: newPath
+                    });
+                }
+            }
+            
+            return null;
+        }
+
+        function canConnectDirect(r1, c1, r2, c2) {
+            if (r1 === r2) {
+                const minC = Math.min(c1, c2);
+                const maxC = Math.max(c1, c2);
+                
+                for (let c = minC + 1; c < maxC; c++) {
+                    if (r1 >= 0 && r1 < ROWS && c >= 0 && c < COLS && board[r1][c] !== null) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            
+            if (c1 === c2) {
+                const minR = Math.min(r1, r2);
+                const maxR = Math.max(r1, r2);
+                
+                for (let r = minR + 1; r < maxR; r++) {
+                    if (c1 >= 0 && c1 < COLS && r >= 0 && r < ROWS && board[r][c1] !== null) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            
+            return false;
+        }
+
+        function isValidPoint(r, c) {
+            if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return true;
+            return board[r][c] === null;
+        }
+
+        function drawPath(path) {
+            const wrapper = document.querySelector('.game-board-wrapper');
+            const boardRect = gameBoard.getBoundingClientRect();
+            const wrapperRect = wrapper.getBoundingClientRect();
+            
+            const tileSize = 50;
+            const gap = 4;
+            const padding = 10;
+            const cellSize = tileSize + gap;
+            
+            function getPointPosition(p) {
+                if (p.r >= 0 && p.r < ROWS && p.c >= 0 && p.c < COLS) {
+                    const tile = getTileElement(p.r, p.c);
+                    if (tile) {
+                        const rect = tile.getBoundingClientRect();
+                        return {
+                            x: rect.left - wrapperRect.left + rect.width / 2,
+                            y: rect.top - wrapperRect.top + rect.height / 2
+                        };
+                    }
+                }
+                
+                let x = padding + p.c * cellSize + tileSize / 2;
+                let y = padding + p.r * cellSize + tileSize / 2;
+                
+                if (p.r < 0) y = padding / 2;
+                if (p.r >= ROWS) y = padding + ROWS * cellSize - gap + tileSize / 2;
+                if (p.c < 0) x = padding / 2;
+                if (p.c >= COLS) x = padding + COLS * cellSize - gap + tileSize / 2;
+                
+                return { x, y };
+            }
+            
+            for (let i = 0; i < path.length - 1; i++) {
+                const p1 = path[i];
+                const p2 = path[i + 1];
+                
+                const line = document.createElement('div');
+                line.className = 'path-line';
+                
+                const pos1 = getPointPosition(p1);
+                const pos2 = getPointPosition(p2);
+                
+                const length = Math.sqrt((pos2.x - pos1.x) ** 2 + (pos2.y - pos1.y) ** 2);
+                const angle = Math.atan2(pos2.y - pos1.y, pos2.x - pos1.x) * 180 / Math.PI;
+                
+                line.style.width = `${length}px`;
+                line.style.height = '4px';
+                line.style.left = `${pos1.x}px`;
+                line.style.top = `${pos1.y}px`;
+                line.style.transform = `rotate(${angle}deg)`;
+                line.style.transformOrigin = '0 50%';
+                
+                wrapper.appendChild(line);
+                
+                setTimeout(() => line.remove(), 400);
+            }
+        }
+
+        function hasValidMoves() {
+            const tiles = [];
+            
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] !== null) {
+                        tiles.push({ r, c, color: board[r][c] });
+                    }
+                }
+            }
+            
+            for (let i = 0; i < tiles.length; i++) {
+                for (let j = i + 1; j < tiles.length; j++) {
+                    if (tiles[i].color === tiles[j].color) {
+                        if (findPath(tiles[i].r, tiles[i].c, tiles[j].r, tiles[j].c)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            
+            return false;
+        }
+
+        function findHint() {
+            const tiles = [];
+            
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] !== null) {
+                        tiles.push({ r, c, color: board[r][c] });
+                    }
+                }
+            }
+            
+            for (let i = 0; i < tiles.length; i++) {
+                for (let j = i + 1; j < tiles.length; j++) {
+                    if (tiles[i].color === tiles[j].color) {
+                        if (findPath(tiles[i].r, tiles[i].c, tiles[j].r, tiles[j].c)) {
+                            return [tiles[i], tiles[j]];
+                        }
+                    }
+                }
+            }
+            
+            return null;
+        }
+
+        function showHint() {
+            if (gameState !== 'playing') return;
+            
+            const hint = findHint();
+            if (hint) {
+                const tile1 = getTileElement(hint[0].r, hint[0].c);
+                const tile2 = getTileElement(hint[1].r, hint[1].c);
+                
+                tile1.classList.add('hint');
+                tile2.classList.add('hint');
+                
+                setTimeout(() => {
+                    tile1.classList.remove('hint');
+                    tile2.classList.remove('hint');
+                }, 2000);
+                
+                score = Math.max(0, score - 5);
+                hintsUsed++;
+                updateUI();
+            }
+        }
+
+        function shuffleBoard() {
+            const tiles = [];
+            
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] !== null) {
+                        tiles.push(board[r][c]);
+                    }
+                }
+            }
+            
+            shuffleArray(tiles);
+            
+            let index = 0;
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] !== null) {
+                        board[r][c] = tiles[index++];
+                    }
+                }
+            }
+            
+            renderBoard();
+            showMessage('重新排列!');
+            
+            score = Math.max(0, score - 20);
+            shufflesUsed++;
+            updateUI();
+            
+            if (!hasValidMoves()) {
+                shuffleBoard();
+            }
+        }
+
+        function showMessage(text) {
+            messageEl.textContent = text;
+            messageEl.classList.remove('show');
+            void messageEl.offsetWidth;
+            messageEl.classList.add('show');
+        }
+
+        function updateUI() {
+            scoreDisplay.textContent = score;
+            remainingDisplay.textContent = remaining;
+            levelDisplay.textContent = level;
+            timerDisplay.textContent = timer;
+            
+            const percent = (timer / INITIAL_TIME) * 100;
+            timerFill.style.width = `${percent}%`;
+            
+            if (percent < 20) {
+                timerFill.classList.add('critical');
+            } else {
+                timerFill.classList.remove('critical');
+            }
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            
+            timerInterval = setInterval(() => {
+                if (gameState === 'playing') {
+                    timer--;
+                    updateUI();
+                    
+                    if (timer <= 0) {
+                        gameOver();
+                    }
+                }
+            }, 1000);
+        }
+
+        function winLevel() {
+            gameState = 'win';
+            clearInterval(timerInterval);
+            
+            const bonus = timer * 5;
+            score += bonus;
+            
+            document.getElementById('win-score').textContent = score;
+            document.getElementById('win-overlay').style.display = 'flex';
+        }
+
+        function nextLevel() {
+            level++;
+            timer = INITIAL_TIME;
+            hintsUsed = 0;
+            shufflesUsed = 0;
+            
+            initBoard();
+            startTimer();
+            
+            document.getElementById('win-overlay').style.display = 'none';
+            gameState = 'playing';
+        }
+
+        function gameOver() {
+            gameState = 'lose';
+            clearInterval(timerInterval);
+            
+            document.getElementById('lose-score').textContent = score;
+            document.getElementById('lose-overlay').style.display = 'flex';
+        }
+
+        function startGame() {
+            gameState = 'playing';
+            score = 0;
+            level = 1;
+            timer = INITIAL_TIME;
+            hintsUsed = 0;
+            shufflesUsed = 0;
+            selectedTile = null;
+            
+            initBoard();
+            startTimer();
+            
+            document.getElementById('start-overlay').style.display = 'none';
+            document.getElementById('win-overlay').style.display = 'none';
+            document.getElementById('lose-overlay').style.display = 'none';
+        }
+
+        function restartGame() {
+            startGame();
+        }
+
+        document.getElementById('start-btn').addEventListener('click', startGame);
+        document.getElementById('game-start-btn').addEventListener('click', startGame);
+        document.getElementById('hint-btn').addEventListener('click', showHint);
+        document.getElementById('shuffle-btn').addEventListener('click', () => {
+            if (gameState === 'playing') {
+                shuffleBoard();
+            }
+        });
+        document.getElementById('next-level-btn').addEventListener('click', nextLevel);
+        document.getElementById('retry-btn').addEventListener('click', restartGame);
+    </script>
+</body>
+</html>
