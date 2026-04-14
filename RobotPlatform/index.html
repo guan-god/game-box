@@ -421,6 +421,7 @@
         let touchLeft    = false;
         let touchRight   = false;
         let raf          = null;
+        let dt           = 0;          // delta time in seconds (updated each frame)
 
         // ─── Utility ──────────────────────────────────────────────────────
         function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -945,7 +946,7 @@
             raf = requestAnimationFrame(gameLoop);
 
             // Calculate delta time in seconds; cap at 100 ms to avoid spiral-of-death
-            const dt = lastTs ? Math.min((ts - lastTs) / 1000, 0.1) : 0;
+            dt = lastTs ? Math.min((ts - lastTs) / 1000, 0.1) : 0;
             lastTs = ts;
 
             if (gameState !== 'playing') {
