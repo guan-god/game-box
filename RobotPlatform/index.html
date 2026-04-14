@@ -34,6 +34,7 @@
             box-shadow:
                 0 0 60px rgba(0, 150, 255, 0.3),
                 inset 0 0 100px rgba(0, 0, 0, 0.5);
+            max-height: 96vh;
         }
 
         .side-panel {
@@ -162,14 +163,15 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: 360px;
-            height: 640px;
+            width: 480px;
+            height: 760px;
             background: rgba(0, 0, 0, 0.88);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 100;
             border-radius: 15px;
+            overflow-y: auto;
         }
 
         .overlay-content {
@@ -231,7 +233,7 @@
             position: absolute;
             bottom: 20px;
             left: 0;
-            width: 360px;
+            width: 480px;
             display: flex;
             justify-content: space-between;
             padding: 0 20px;
@@ -276,11 +278,47 @@
             border-radius: 3px;
             transition: width 0.5s;
         }
+
+        /* Difficulty selection */
+        .diff-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 16px 0;
+            width: 100%;
+        }
+
+        .diff-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 14px 10px;
+            cursor: pointer;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            text-align: center;
+        }
+        .diff-btn[data-diff="easy"]   { border-color: #4caf50; }
+        .diff-btn[data-diff="normal"] { border-color: #2196f3; }
+        .diff-btn[data-diff="hard"]   { border-color: #ff9800; }
+        .diff-btn[data-diff="hell"]   { border-color: #f44336; }
+        .diff-btn[data-diff="easy"]:hover   { background: rgba(76,175,80,0.25);   transform: translateY(-3px); box-shadow: 0 6px 20px rgba(76,175,80,0.4); }
+        .diff-btn[data-diff="normal"]:hover { background: rgba(33,150,243,0.25);  transform: translateY(-3px); box-shadow: 0 6px 20px rgba(33,150,243,0.4); }
+        .diff-btn[data-diff="hard"]:hover   { background: rgba(255,152,0,0.25);   transform: translateY(-3px); box-shadow: 0 6px 20px rgba(255,152,0,0.4); }
+        .diff-btn[data-diff="hell"]:hover   { background: rgba(244,67,54,0.25);   transform: translateY(-3px); box-shadow: 0 6px 20px rgba(244,67,54,0.4); }
+        .diff-icon { font-size: 30px; }
+        .diff-name { font-size: 17px; font-weight: bold; }
+        .diff-desc { font-size: 11px; color: rgba(255,255,255,0.6); line-height: 1.6; }
     </style>
 </head>
 <body>
     <div class="game-wrapper">
-        <canvas id="game-canvas" width="360" height="640"></canvas>
+        <canvas id="game-canvas" width="480" height="760"></canvas>
 
         <div class="side-panel">
             <div class="panel-box">
@@ -327,7 +365,7 @@
                 <div style="margin-top:8px;">
                     <div class="legend-row">
                         <div class="legend-dot" style="background:#7fb8d8;"></div>
-                        <span>☁️ 云 — 2秒消失</span>
+                        <span>☁️ 云 — 踩上后消失</span>
                     </div>
                     <div class="legend-row">
                         <div class="legend-dot" style="background:#ff8c00;"></div>
@@ -341,6 +379,10 @@
                         <div class="legend-dot" style="background:#6a7f8f;"></div>
                         <span>🔩 铁板 — 无效果</span>
                     </div>
+                    <div class="legend-row">
+                        <div class="legend-dot" style="background:#20b8b8;"></div>
+                        <span>🔄 移动板 — 来回移动</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -351,18 +393,34 @@
             <div class="touch-btn" id="touch-right">▶</div>
         </div>
 
-        <!-- Start overlay -->
+        <!-- Start / Difficulty overlay -->
         <div class="game-overlay" id="start-overlay">
             <div class="overlay-content">
                 <div class="overlay-title start">机器人跳跳</div>
-                <div class="overlay-subtitle">平台不断上升，控制机器人<br>在平台间穿梭，存活越久得分越高！</div>
-                <div class="start-desc">
-                    <div class="start-desc-row"><span>☁️</span><span>云朵：踩上2秒后消失</span></div>
-                    <div class="start-desc-row"><span>⚡</span><span>传送带：左右推动机器人</span></div>
-                    <div class="start-desc-row"><span>⚠️</span><span>有刺板：踩上扣一滴血</span></div>
-                    <div class="start-desc-row"><span>🔩</span><span>铁板：正常平台</span></div>
+                <div class="overlay-subtitle">平台不断上升，控制机器人在平台间穿梭，存活越久得分越高！</div>
+                <div class="overlay-subtitle" style="color:#b388ff; font-weight:bold; margin-top:6px;">选择游戏难度</div>
+                <div class="diff-grid">
+                    <button class="diff-btn" data-diff="easy">
+                        <span class="diff-icon">🌱</span>
+                        <div class="diff-name">简单</div>
+                        <div class="diff-desc">3命 · 较慢速度<br>宽平台 · 云1.5秒消失</div>
+                    </button>
+                    <button class="diff-btn" data-diff="normal">
+                        <span class="diff-icon">⚙️</span>
+                        <div class="diff-name">普通</div>
+                        <div class="diff-desc">3命 · 标准速度<br>普通平台 · 云1.2秒消失</div>
+                    </button>
+                    <button class="diff-btn" data-diff="hard">
+                        <span class="diff-icon">🔥</span>
+                        <div class="diff-name">困难</div>
+                        <div class="diff-desc">2命 · 较快速度<br>窄平台 · 云0.8秒消失<br>移动平台出现</div>
+                    </button>
+                    <button class="diff-btn" data-diff="hell">
+                        <span class="diff-icon">💀</span>
+                        <div class="diff-name">地狱</div>
+                        <div class="diff-desc">1命 · 极速<br>极窄平台 · 云0.5秒消失<br>大量移动平台</div>
+                    </button>
                 </div>
-                <button class="btn btn-primary" id="start-overlay-btn" style="margin-top:15px; padding:15px 45px; font-size:16px;">开始游戏</button>
             </div>
         </div>
 
@@ -374,6 +432,7 @@
                 <div class="overlay-subtitle">存活时间：<strong id="final-time" style="color:#fff">0</strong> 秒</div>
                 <div class="overlay-score" id="final-score">得分: 0</div>
                 <button class="btn btn-primary" id="restart-btn" style="margin-top:15px; padding:15px 45px; font-size:16px;">再来一局</button>
+                <button class="btn btn-secondary" id="change-diff-btn" style="margin-top:10px; padding:12px 35px; font-size:14px;">换难度</button>
             </div>
         </div>
     </div>
@@ -382,28 +441,77 @@
         // ─── Canvas & context ─────────────────────────────────────────────
         const canvas = document.getElementById('game-canvas');
         const ctx    = canvas.getContext('2d');
-        const W = canvas.width;   // 360
-        const H = canvas.height;  // 640
+        const W = canvas.width;   // 480
+        const H = canvas.height;  // 760
 
-        // ─── Constants ────────────────────────────────────────────────────
+        // ─── Fixed constants ──────────────────────────────────────────────
         const GRAVITY        = 0.38;
         const MAX_FALL_SPEED = 10;
         const PLAYER_W       = 28;
         const PLAYER_H       = 36;
         const PLAYER_SPEED   = 3.6;
         const PLAT_H         = 14;
-        const PLAT_MIN_W     = 65;
-        const PLAT_MAX_W     = 130;
-        const INITIAL_SPEED  = 1.2;
-        const MAX_SPEED      = 4.5;
-        const CLOUD_LIFE_SECS    = 2.0;   // seconds before cloud disappears
-        const CONVEYOR_PUSH      = 1.6;
-        const INV_SECS           = 2.0;   // invincibility duration in seconds
-        const MAX_LIVES          = 3;
+        const INV_SECS       = 2.0;   // invincibility duration in seconds
 
-        // Spawn timing (seconds between waves)
-        const SPAWN_INTERVAL_INIT = 1.58;
-        const SPAWN_INTERVAL_MIN  = 0.80;
+        // ─── Difficulty presets ───────────────────────────────────────────
+        // typeWeights: cumulative thresholds for [iron, cloud, conveyor, spiky, moving]
+        const DIFFICULTIES = {
+            easy: {
+                label: '简单', initialSpeed: 1.0, maxSpeed: 3.5, speedRamp: 0.028,
+                cloudLife: 1.5, conveyorPush: 1.3, maxLives: 3,
+                platMinW: 78, platMaxW: 148,
+                spawnInit: 1.70, spawnMin: 0.90,
+                typeWeights: [0.55, 0.77, 0.90, 0.97, 1.00],
+            },
+            normal: {
+                label: '普通', initialSpeed: 1.2, maxSpeed: 4.5, speedRamp: 0.036,
+                cloudLife: 1.2, conveyorPush: 1.6, maxLives: 3,
+                platMinW: 58, platMaxW: 128,
+                spawnInit: 1.58, spawnMin: 0.78,
+                typeWeights: [0.30, 0.55, 0.73, 0.86, 1.00],
+            },
+            hard: {
+                label: '困难', initialSpeed: 1.6, maxSpeed: 5.5, speedRamp: 0.046,
+                cloudLife: 0.8, conveyorPush: 2.0, maxLives: 2,
+                platMinW: 46, platMaxW: 105,
+                spawnInit: 1.38, spawnMin: 0.62,
+                typeWeights: [0.15, 0.43, 0.61, 0.77, 1.00],
+            },
+            hell: {
+                label: '地狱', initialSpeed: 2.0, maxSpeed: 7.0, speedRamp: 0.056,
+                cloudLife: 0.5, conveyorPush: 2.5, maxLives: 1,
+                platMinW: 38, platMaxW: 88,
+                spawnInit: 1.18, spawnMin: 0.52,
+                typeWeights: [0.08, 0.38, 0.53, 0.74, 1.00],
+            },
+        };
+
+        // ─── Mutable difficulty vars (set by applyDifficulty) ─────────────
+        let diff             = DIFFICULTIES.normal;
+        let currentDiffKey   = 'normal';
+        let INITIAL_SPEED    = diff.initialSpeed;
+        let MAX_SPEED        = diff.maxSpeed;
+        let CLOUD_LIFE_SECS  = diff.cloudLife;
+        let CONVEYOR_PUSH    = diff.conveyorPush;
+        let MAX_LIVES        = diff.maxLives;
+        let PLAT_MIN_W       = diff.platMinW;
+        let PLAT_MAX_W       = diff.platMaxW;
+        let SPAWN_INTERVAL_INIT = diff.spawnInit;
+        let SPAWN_INTERVAL_MIN  = diff.spawnMin;
+
+        function applyDifficulty(key) {
+            diff              = DIFFICULTIES[key];
+            currentDiffKey    = key;
+            INITIAL_SPEED     = diff.initialSpeed;
+            MAX_SPEED         = diff.maxSpeed;
+            CLOUD_LIFE_SECS   = diff.cloudLife;
+            CONVEYOR_PUSH     = diff.conveyorPush;
+            MAX_LIVES         = diff.maxLives;
+            PLAT_MIN_W        = diff.platMinW;
+            PLAT_MAX_W        = diff.platMaxW;
+            SPAWN_INTERVAL_INIT = diff.spawnInit;
+            SPAWN_INTERVAL_MIN  = diff.spawnMin;
+        }
 
         // ─── State ────────────────────────────────────────────────────────
         let gameState    = 'start'; // 'start' | 'playing' | 'paused' | 'gameover'
@@ -520,11 +628,13 @@
                 this.y            = y;
                 this.width        = w;
                 this.height       = PLAT_H;
-                this.type         = type; // 'iron'|'cloud'|'conveyor'|'spiky'
+                this.type         = type; // 'iron'|'cloud'|'conveyor'|'spiky'|'moving'
                 this.active       = true;
                 this.cloudTimer   = -1;   // -1 = not yet touched
                 this.conveyorDir  = Math.random() < 0.5 ? -1 : 1;
                 this.animOffset   = Math.random() * 100;
+                this.movingDir    = Math.random() < 0.5 ? -1 : 1;
+                this.movingSpeed  = rand(45, 90); // px per second
             }
 
             update(dt) {
@@ -534,6 +644,12 @@
                 if (this.type === 'cloud' && this.cloudTimer > 0) {
                     this.cloudTimer -= dt;
                     if (this.cloudTimer <= 0) this.active = false;
+                }
+
+                if (this.type === 'moving') {
+                    this.x += this.movingDir * this.movingSpeed * dt;
+                    if (this.x <= 0) { this.x = 0; this.movingDir = 1; }
+                    if (this.x + this.width >= W) { this.x = W - this.width; this.movingDir = -1; }
                 }
             }
 
@@ -649,6 +765,39 @@
                         }
                         break;
                     }
+                    case 'moving': {
+                        const g = ctx.createLinearGradient(x, y, x, y + h);
+                        g.addColorStop(0, '#40e8d0');
+                        g.addColorStop(1, '#0a8870');
+                        ctx.fillStyle   = g;
+                        ctx.shadowBlur  = 12;
+                        ctx.shadowColor = 'rgba(0,220,180,0.7)';
+                        roundRect(ctx, x, y, w, h, 3);
+                        ctx.fill();
+                        // Animated directional arrows
+                        const spacing2 = 20;
+                        const shift2   = ((this.animOffset * 5) % spacing2) * this.movingDir;
+                        ctx.fillStyle   = '#ccfff8';
+                        ctx.shadowBlur  = 4;
+                        ctx.shadowColor = '#ccfff8';
+                        for (let ax = x + 4; ax < x + w - 4; ax += spacing2) {
+                            const arx = ax + shift2;
+                            if (arx < x + 3 || arx > x + w - 8) continue;
+                            ctx.beginPath();
+                            if (this.movingDir > 0) {
+                                ctx.moveTo(arx,     y + h / 2 - 3);
+                                ctx.lineTo(arx + 6, y + h / 2);
+                                ctx.lineTo(arx,     y + h / 2 + 3);
+                            } else {
+                                ctx.moveTo(arx + 6, y + h / 2 - 3);
+                                ctx.lineTo(arx,     y + h / 2);
+                                ctx.lineTo(arx + 6, y + h / 2 + 3);
+                            }
+                            ctx.closePath();
+                            ctx.fill();
+                        }
+                        break;
+                    }
                 }
                 ctx.restore();
             }
@@ -699,6 +848,11 @@
                         // Conveyor push
                         if (p.type === 'conveyor') {
                             this.x += p.conveyorDir * CONVEYOR_PUSH * dt * 60;
+                            this.x = clamp(this.x, 0, W - PLAYER_W);
+                        }
+                        // Moving platform carries player horizontally
+                        if (p.type === 'moving') {
+                            this.x += p.movingDir * p.movingSpeed * dt;
                             this.x = clamp(this.x, 0, W - PLAYER_W);
                         }
                         // Ride the platform up
@@ -854,32 +1008,35 @@
 
         // ─── Platform spawning ────────────────────────────────────────────
         function pickType() {
-            const r = Math.random();
-            if (r < 0.38) return 'iron';
-            if (r < 0.65) return 'cloud';
-            if (r < 0.85) return 'conveyor';
-            return 'spiky';
+            const r     = Math.random();
+            const types = ['iron', 'cloud', 'conveyor', 'spiky', 'moving'];
+            for (let i = 0; i < diff.typeWeights.length; i++) {
+                if (r < diff.typeWeights[i]) return types[i];
+            }
+            return types[types.length - 1];
         }
 
         function spawnWave(yPos) {
-            // Generate 2–3 non-overlapping platforms across the screen width
+            // Generate non-overlapping platforms across the screen width
             const segments = [];
-            let cursor = randInt(0, 15);
+            let cursor = randInt(0, 18);
             while (cursor < W - PLAT_MIN_W) {
-                const pw  = randInt(PLAT_MIN_W, Math.min(PLAT_MAX_W, W - cursor - 10));
+                const pw  = randInt(PLAT_MIN_W, Math.min(PLAT_MAX_W, W - cursor - 8));
                 segments.push({ x: cursor, w: pw });
-                cursor += pw + randInt(28, 72);
+                cursor += pw + randInt(18, 60);
             }
 
-            // Ensure at least 2 platforms; if only 1, force another
+            // Ensure at least 2 platforms
             if (segments.length < 2) {
                 segments.push({ x: randInt(10, W - PLAT_MIN_W - 10), w: randInt(PLAT_MIN_W, PLAT_MAX_W) });
             }
 
-            // Limit to 4 platforms per wave
-            const chosen = segments.slice(0, 4);
+            // Allow up to 5 platforms per wave for more complexity
+            const chosen = segments.slice(0, 5);
             for (const seg of chosen) {
-                platforms.push(new Platform(seg.x, yPos, seg.w, pickType()));
+                // Vertical stagger: each platform slightly offset for a more intricate layout
+                const yOffset = randInt(-22, 22);
+                platforms.push(new Platform(seg.x, yPos + yOffset, seg.w, pickType()));
             }
         }
 
@@ -909,6 +1066,18 @@
         }
 
         // ─── UI helpers ───────────────────────────────────────────────────
+        function updateLivesContainer() {
+            const container = document.getElementById('lives-display');
+            container.innerHTML = '';
+            for (let i = 0; i < MAX_LIVES; i++) {
+                const span = document.createElement('span');
+                span.className = 'life-heart';
+                span.id = 'heart-' + i;
+                span.textContent = '❤️';
+                container.appendChild(span);
+            }
+        }
+
         function updateHeartsUI() {
             for (let i = 0; i < MAX_LIVES; i++) {
                 const el = document.getElementById('heart-' + i);
@@ -960,8 +1129,8 @@
             survivalTime += dt;
             score         = Math.floor(survivalTime * 10);
 
-            // Speed ramp: reaches MAX_SPEED after ~90 s of play
-            platformSpeed = Math.min(MAX_SPEED, INITIAL_SPEED + survivalTime * 0.036);
+            // Speed ramp: accelerates based on difficulty speedRamp
+            platformSpeed = Math.min(MAX_SPEED, INITIAL_SPEED + survivalTime * diff.speedRamp);
 
             // Spawn wave
             spawnTimer -= dt;
@@ -1013,7 +1182,13 @@
         }
 
         // ─── Start / Restart ──────────────────────────────────────────────
-        function startGame() {
+        function showDifficultyScreen() {
+            document.getElementById('gameover-overlay').style.display = 'none';
+            document.getElementById('start-overlay').style.display    = 'flex';
+        }
+
+        function startGame(diffKey) {
+            if (diffKey) applyDifficulty(diffKey);
             gameState     = 'playing';
             score         = 0;
             survivalTime  = 0;
@@ -1021,6 +1196,7 @@
             platformSpeed = INITIAL_SPEED;
             spawnTimer    = 0.3;
             particles     = [];
+            updateLivesContainer();
             player        = new Player();
             initPlatforms();
             initStars();
@@ -1060,12 +1236,17 @@
         document.addEventListener('keyup', e => { keys[e.code] = false; });
 
         // Buttons
-        document.getElementById('start-overlay-btn').addEventListener('click', startGame);
         document.getElementById('start-btn').addEventListener('click', () => {
-            if (gameState === 'start' || gameState === 'gameover') startGame();
+            if (gameState === 'start' || gameState === 'gameover') showDifficultyScreen();
         });
         document.getElementById('pause-btn').addEventListener('click', pauseGame);
-        document.getElementById('restart-btn').addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', () => startGame(null));
+        document.getElementById('change-diff-btn').addEventListener('click', showDifficultyScreen);
+
+        // Difficulty selection buttons
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.addEventListener('click', () => startGame(btn.dataset.diff));
+        });
 
         // Touch buttons
         function setupTouch(id, setter) {
@@ -1081,6 +1262,7 @@
 
         // ─── Boot ─────────────────────────────────────────────────────────
         document.getElementById('high-score-display').textContent = highScore;
+        updateLivesContainer();
         initStars();
         initPlatforms();
         player = new Player();
