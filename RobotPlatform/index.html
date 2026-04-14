@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机器人跳跳</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 50%, #0a0a1a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .game-wrapper {
+            position: relative;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        #game-canvas {
+            display: block;
+            border-radius: 15px;
+            box-shadow:
+                0 0 60px rgba(0, 150, 255, 0.3),
+                inset 0 0 100px rgba(0, 0, 0, 0.5);
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 190px;
+        }
+
+        .panel-box {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel-title {
+            color: #b388ff;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        .panel-value {
+            color: #fff;
+            font-size: 26px;
+            text-align: center;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(179, 136, 255, 0.5);
+        }
+
+        .lives-container {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .life-heart {
+            font-size: 22px;
+            transition: all 0.3s;
+            filter: drop-shadow(0 0 4px rgba(255, 100, 100, 0.8));
+        }
+
+        .life-heart.lost {
+            filter: grayscale(1);
+            opacity: 0.25;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00c9ff, #92fe9d);
+            color: #0a0a0a;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 201, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .instructions {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 11px;
+            line-height: 2;
+        }
+
+        .instructions h3 {
+            color: #b388ff;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .key {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 0 2px;
+            color: #b388ff;
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 3px 0;
+        }
+
+        .legend-dot {
+            width: 14px;
+            height: 8px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .game-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 360px;
+            height: 640px;
+            background: rgba(0, 0, 0, 0.88);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            border-radius: 15px;
+        }
+
+        .overlay-content {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .overlay-title {
+            font-size: 40px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-shadow: 0 0 30px currentColor;
+        }
+
+        .overlay-title.start {
+            background: linear-gradient(135deg, #00f5ff, #92fe9d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .overlay-title.gameover {
+            color: #ff6b6b;
+        }
+
+        .overlay-subtitle {
+            color: #8892b0;
+            font-size: 15px;
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .overlay-score {
+            color: #ffd700;
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+            margin: 10px 0;
+        }
+
+        .start-desc {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin: 12px 0;
+            text-align: left;
+        }
+
+        .start-desc-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px 0;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .touch-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 360px;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .touch-btn {
+            width: 72px;
+            height: 72px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            color: rgba(255, 255, 255, 0.8);
+            pointer-events: all;
+            user-select: none;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .touch-btn:active,
+        .touch-btn.pressed {
+            background: rgba(255, 255, 255, 0.28);
+        }
+
+        .speed-bar-wrapper {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .speed-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00c9ff, #f7971e);
+            border-radius: 3px;
+            transition: width 0.5s;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-wrapper">
+        <canvas id="game-canvas" width="360" height="640"></canvas>
+
+        <div class="side-panel">
+            <div class="panel-box">
+                <div class="panel-title">分数</div>
+                <div class="panel-value" id="score-display">0</div>
+            </div>
+
+            <div class="panel-box">
+                <div class="panel-title">最高分</div>
+                <div class="panel-value" id="high-score-display">0</div>
+            </div>
+
+            <div class="panel-box">
+                <div class="panel-title">时间</div>
+                <div class="panel-value" id="time-display">0s</div>
+            </div>
+
+            <div class="panel-box">
+                <div class="panel-title">速度</div>
+                <div class="panel-value" id="speed-display">1.0x</div>
+                <div class="speed-bar-wrapper">
+                    <div class="speed-bar-fill" id="speed-bar" style="width:0%"></div>
+                </div>
+            </div>
+
+            <div class="panel-box">
+                <div class="panel-title">生命</div>
+                <div class="lives-container" id="lives-display">
+                    <span class="life-heart" id="heart-0">❤️</span>
+                    <span class="life-heart" id="heart-1">❤️</span>
+                    <span class="life-heart" id="heart-2">❤️</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" id="start-btn">开始游戏</button>
+                <button class="btn btn-secondary" id="pause-btn" disabled>暂停</button>
+            </div>
+
+            <div class="panel-box instructions">
+                <h3>操作说明</h3>
+                <p><span class="key">←</span><span class="key">→</span> 或 <span class="key">A</span><span class="key">D</span></p>
+                <p><span class="key">Space</span> 暂停</p>
+                <div style="margin-top:8px;">
+                    <div class="legend-row">
+                        <div class="legend-dot" style="background:#7fb8d8;"></div>
+                        <span>☁️ 云 — 2秒消失</span>
+                    </div>
+                    <div class="legend-row">
+                        <div class="legend-dot" style="background:#ff8c00;"></div>
+                        <span>⚡ 传送带 — 推力</span>
+                    </div>
+                    <div class="legend-row">
+                        <div class="legend-dot" style="background:#cc2020;"></div>
+                        <span>⚠️ 有刺 — 扣血</span>
+                    </div>
+                    <div class="legend-row">
+                        <div class="legend-dot" style="background:#6a7f8f;"></div>
+                        <span>🔩 铁板 — 无效果</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Touch controls (shown on mobile) -->
+        <div class="touch-controls" id="touch-controls" style="display:none">
+            <div class="touch-btn" id="touch-left">◀</div>
+            <div class="touch-btn" id="touch-right">▶</div>
+        </div>
+
+        <!-- Start overlay -->
+        <div class="game-overlay" id="start-overlay">
+            <div class="overlay-content">
+                <div class="overlay-title start">机器人跳跳</div>
+                <div class="overlay-subtitle">平台不断上升，控制机器人<br>在平台间穿梭，存活越久得分越高！</div>
+                <div class="start-desc">
+                    <div class="start-desc-row"><span>☁️</span><span>云朵：踩上2秒后消失</span></div>
+                    <div class="start-desc-row"><span>⚡</span><span>传送带：左右推动机器人</span></div>
+                    <div class="start-desc-row"><span>⚠️</span><span>有刺板：踩上扣一滴血</span></div>
+                    <div class="start-desc-row"><span>🔩</span><span>铁板：正常平台</span></div>
+                </div>
+                <button class="btn btn-primary" id="start-overlay-btn" style="margin-top:15px; padding:15px 45px; font-size:16px;">开始游戏</button>
+            </div>
+        </div>
+
+        <!-- Game over overlay -->
+        <div class="game-overlay" id="gameover-overlay" style="display:none">
+            <div class="overlay-content">
+                <div class="overlay-title gameover">游戏结束</div>
+                <div class="overlay-subtitle" id="gameover-reason">掉落了！</div>
+                <div class="overlay-subtitle">存活时间：<strong id="final-time" style="color:#fff">0</strong> 秒</div>
+                <div class="overlay-score" id="final-score">得分: 0</div>
+                <button class="btn btn-primary" id="restart-btn" style="margin-top:15px; padding:15px 45px; font-size:16px;">再来一局</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ─── Canvas & context ─────────────────────────────────────────────
+        const canvas = document.getElementById('game-canvas');
+        const ctx    = canvas.getContext('2d');
+        const W = canvas.width;   // 360
+        const H = canvas.height;  // 640
+
+        // ─── Constants ────────────────────────────────────────────────────
+        const GRAVITY        = 0.38;
+        const MAX_FALL_SPEED = 10;
+        const PLAYER_W       = 28;
+        const PLAYER_H       = 36;
+        const PLAYER_SPEED   = 3.6;
+        const PLAT_H         = 14;
+        const PLAT_MIN_W     = 65;
+        const PLAT_MAX_W     = 130;
+        const INITIAL_SPEED  = 1.2;
+        const MAX_SPEED      = 4.5;
+        const CLOUD_LIFE     = 120;  // frames (≈2 s at 60 fps)
+        const CONVEYOR_PUSH  = 1.6;
+        const INV_FRAMES     = 120;  // invincibility after hit
+        const MAX_LIVES      = 3;
+
+        // Spawn timing (frames between waves)
+        const SPAWN_INTERVAL_INIT = 95;
+        const SPAWN_INTERVAL_MIN  = 48;
+
+        // ─── State ────────────────────────────────────────────────────────
+        let gameState    = 'start'; // 'start' | 'playing' | 'paused' | 'gameover'
+        let score        = 0;
+        let highScore    = parseInt(localStorage.getItem('robotPlatformHigh')) || 0;
+        let survivalTime = 0;          // seconds
+        let frameTick    = 0;          // total frames since game start
+        let platformSpeed = INITIAL_SPEED;
+        let spawnTimer   = 0;
+        let player       = null;
+        let platforms    = [];
+        let particles    = [];
+        let stars        = [];
+        let keys         = {};
+        let touchLeft    = false;
+        let touchRight   = false;
+        let raf          = null;
+        let lastTimestamp = 0;
+        let pauseTimestamp = 0;
+
+        // ─── Utility ──────────────────────────────────────────────────────
+        function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+        function rand(lo, hi)     { return lo + Math.random() * (hi - lo); }
+        function randInt(lo, hi)  { return Math.floor(rand(lo, hi + 1)); }
+
+        function roundRect(cx, x, y, w, h, r) {
+            cx.beginPath();
+            cx.moveTo(x + r, y);
+            cx.lineTo(x + w - r, y);
+            cx.arcTo(x + w, y, x + w, y + r, r);
+            cx.lineTo(x + w, y + h - r);
+            cx.arcTo(x + w, y + h, x + w - r, y + h, r);
+            cx.lineTo(x + r, y + h);
+            cx.arcTo(x, y + h, x, y + h - r, r);
+            cx.lineTo(x, y + r);
+            cx.arcTo(x, y, x + r, y, r);
+            cx.closePath();
+        }
+
+        // ─── Stars (background) ───────────────────────────────────────────
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < 80; i++) {
+                stars.push({
+                    x: rand(0, W),
+                    y: rand(0, H),
+                    r: rand(0.5, 2),
+                    alpha: rand(0.3, 1),
+                    speed: rand(0.05, 0.25)
+                });
+            }
+        }
+
+        function drawBackground() {
+            const bg = ctx.createLinearGradient(0, 0, 0, H);
+            bg.addColorStop(0, '#05051a');
+            bg.addColorStop(0.5, '#0a0a22');
+            bg.addColorStop(1, '#05051a');
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, W, H);
+
+            // Scroll stars upward (same direction as platforms)
+            ctx.save();
+            for (const s of stars) {
+                s.y -= s.speed * (platformSpeed / INITIAL_SPEED);
+                if (s.y < 0) s.y = H;
+                ctx.globalAlpha = s.alpha;
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // ─── Particle ─────────────────────────────────────────────────────
+        class Particle {
+            constructor(x, y, color) {
+                this.x     = x;
+                this.y     = y;
+                this.color = color;
+                this.vx    = rand(-5, 5);
+                this.vy    = rand(-6, 1);
+                this.life  = 1.0;
+                this.size  = rand(2, 5);
+            }
+            update() {
+                this.x    += this.vx;
+                this.y    += this.vy;
+                this.vy   += 0.18;
+                this.life -= 0.028;
+                this.size *= 0.97;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.shadowBlur  = 8;
+                ctx.shadowColor = this.color;
+                ctx.fillStyle   = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function spawnParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) particles.push(new Particle(x, y, color));
+        }
+
+        // ─── Platform ─────────────────────────────────────────────────────
+        class Platform {
+            constructor(x, y, w, type) {
+                this.x            = x;
+                this.y            = y;
+                this.width        = w;
+                this.height       = PLAT_H;
+                this.type         = type; // 'iron'|'cloud'|'conveyor'|'spiky'
+                this.active       = true;
+                this.cloudTimer   = -1;   // -1 = not yet touched
+                this.conveyorDir  = Math.random() < 0.5 ? -1 : 1;
+                this.animOffset   = Math.random() * 100;
+            }
+
+            update() {
+                this.y -= platformSpeed;
+                this.animOffset += 0.04;
+
+                if (this.type === 'cloud' && this.cloudTimer > 0) {
+                    this.cloudTimer--;
+                    if (this.cloudTimer <= 0) this.active = false;
+                }
+            }
+
+            isOffScreen() { return this.y + this.height < 0; }
+
+            draw() {
+                if (!this.active) return;
+                ctx.save();
+                const x = this.x, y = this.y, w = this.width, h = this.height;
+
+                switch (this.type) {
+                    case 'iron': {
+                        const g = ctx.createLinearGradient(x, y, x, y + h);
+                        g.addColorStop(0, '#b0c4d4');
+                        g.addColorStop(0.4, '#6a7f8f');
+                        g.addColorStop(1, '#3a4f5f');
+                        ctx.fillStyle = g;
+                        ctx.shadowBlur  = 6;
+                        ctx.shadowColor = 'rgba(100,160,200,0.45)';
+                        roundRect(ctx, x, y, w, h, 3);
+                        ctx.fill();
+                        // Rivets
+                        ctx.fillStyle   = '#8aa0b0';
+                        ctx.shadowBlur  = 0;
+                        for (let rx = x + 8; rx < x + w - 4; rx += 20) {
+                            ctx.beginPath();
+                            ctx.arc(rx, y + h / 2, 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        break;
+                    }
+                    case 'cloud': {
+                        const alpha = this.cloudTimer > 0
+                            ? Math.max(0.15, this.cloudTimer / CLOUD_LIFE)
+                            : 1;
+                        ctx.globalAlpha = alpha;
+                        ctx.shadowBlur  = 18;
+                        ctx.shadowColor = 'rgba(180,225,255,0.9)';
+                        // Cloud puffs
+                        const bumps = Math.max(3, Math.floor(w / 22));
+                        ctx.fillStyle = '#c8e8ff';
+                        ctx.beginPath();
+                        for (let i = 0; i < bumps; i++) {
+                            const bx = x + 10 + i * ((w - 20) / Math.max(1, bumps - 1));
+                            const br = 7 + Math.sin(this.animOffset + i * 1.3) * 1.5;
+                            ctx.arc(bx, y + 3, br, 0, Math.PI * 2);
+                        }
+                        ctx.fill();
+                        // Solid base
+                        ctx.shadowBlur = 4;
+                        ctx.fillStyle  = '#dff0ff';
+                        roundRect(ctx, x + 3, y + 5, w - 6, h - 5, 2);
+                        ctx.fill();
+                        break;
+                    }
+                    case 'conveyor': {
+                        const g = ctx.createLinearGradient(x, y, x, y + h);
+                        g.addColorStop(0, '#ffa020');
+                        g.addColorStop(1, '#b85a00');
+                        ctx.fillStyle   = g;
+                        ctx.shadowBlur  = 10;
+                        ctx.shadowColor = 'rgba(255,150,0,0.6)';
+                        roundRect(ctx, x, y, w, h, 3);
+                        ctx.fill();
+                        // Animated arrows
+                        const spacing  = 22;
+                        const shift    = ((this.animOffset * 4) % spacing) * this.conveyorDir;
+                        ctx.fillStyle  = '#ffe060';
+                        ctx.shadowBlur = 3;
+                        ctx.shadowColor = '#ffe060';
+                        for (let ax = x + 4; ax < x + w - 4; ax += spacing) {
+                            const arx = ax + shift;
+                            if (arx < x + 3 || arx > x + w - 8) continue;
+                            ctx.beginPath();
+                            if (this.conveyorDir > 0) {
+                                ctx.moveTo(arx,     y + h / 2 - 3);
+                                ctx.lineTo(arx + 7, y + h / 2);
+                                ctx.lineTo(arx,     y + h / 2 + 3);
+                            } else {
+                                ctx.moveTo(arx + 7, y + h / 2 - 3);
+                                ctx.lineTo(arx,     y + h / 2);
+                                ctx.lineTo(arx + 7, y + h / 2 + 3);
+                            }
+                            ctx.closePath();
+                            ctx.fill();
+                        }
+                        break;
+                    }
+                    case 'spiky': {
+                        const spikeH = 7;
+                        const g = ctx.createLinearGradient(x, y + spikeH, x, y + h);
+                        g.addColorStop(0, '#e02020');
+                        g.addColorStop(1, '#7a0000');
+                        ctx.fillStyle   = g;
+                        ctx.shadowBlur  = 12;
+                        ctx.shadowColor = 'rgba(220,30,30,0.8)';
+                        // Base rect (below spikes)
+                        roundRect(ctx, x, y + spikeH, w, h - spikeH, 2);
+                        ctx.fill();
+                        // Spikes
+                        ctx.fillStyle = '#ff4444';
+                        ctx.shadowBlur = 6;
+                        ctx.shadowColor = '#ff2222';
+                        const spk = Math.floor(w / 11);
+                        for (let i = 0; i < spk; i++) {
+                            const sx = x + (i + 0.5) * (w / spk);
+                            ctx.beginPath();
+                            ctx.moveTo(sx - 4, y + spikeH);
+                            ctx.lineTo(sx,     y);
+                            ctx.lineTo(sx + 4, y + spikeH);
+                            ctx.closePath();
+                            ctx.fill();
+                        }
+                        break;
+                    }
+                }
+                ctx.restore();
+            }
+        }
+
+        // ─── Player ───────────────────────────────────────────────────────
+        class Player {
+            constructor() {
+                this.x          = W / 2 - PLAYER_W / 2;
+                this.y          = H * 0.55 - PLAYER_H;
+                this.vy         = 0;
+                this.lives      = MAX_LIVES;
+                this.onPlatform = null;
+                this.invincible = false;
+                this.invTimer   = 0;
+                this.trail      = [];
+                this.flashTimer = 0;
+            }
+
+            get left()   { return this.x; }
+            get right()  { return this.x + PLAYER_W; }
+            get top()    { return this.y; }
+            get bottom() { return this.y + PLAYER_H; }
+
+            isOverPlatform(p) {
+                return this.right > p.x + 4 && this.left < p.x + p.width - 4;
+            }
+
+            update() {
+                // ── Horizontal input ──────────────────────────────────────
+                let moving = false;
+                if (keys['ArrowLeft'] || keys['KeyA'] || touchLeft) {
+                    this.x -= PLAYER_SPEED;
+                    moving = true;
+                }
+                if (keys['ArrowRight'] || keys['KeyD'] || touchRight) {
+                    this.x += PLAYER_SPEED;
+                    moving = true;
+                }
+                this.x = clamp(this.x, 0, W - PLAYER_W);
+
+                // ── Vertical: standing on platform ────────────────────────
+                if (this.onPlatform) {
+                    const p = this.onPlatform;
+                    if (!p.active || !this.isOverPlatform(p)) {
+                        // Stepped off edge or cloud disappeared
+                        this.onPlatform = null;
+                        this.vy = 0;
+                    } else {
+                        // Conveyor push
+                        if (p.type === 'conveyor') {
+                            this.x += p.conveyorDir * CONVEYOR_PUSH;
+                            this.x = clamp(this.x, 0, W - PLAYER_W);
+                        }
+                        // Ride the platform up
+                        this.y  = p.y - PLAYER_H;
+                        this.vy = 0;
+                    }
+                }
+
+                // ── Vertical: in the air ──────────────────────────────────
+                if (!this.onPlatform) {
+                    this.vy = Math.min(this.vy + GRAVITY, MAX_FALL_SPEED);
+                    this.y += this.vy;
+
+                    // Landing detection
+                    for (const p of platforms) {
+                        if (!p.active) continue;
+                        if (!this.isOverPlatform(p)) continue;
+                        // Player feet crossed from above to at/below platform top
+                        const feet    = this.y + PLAYER_H;
+                        const prevFeet = feet - this.vy;
+                        if (prevFeet <= p.y + 1 && feet >= p.y && this.vy >= 0) {
+                            this.y          = p.y - PLAYER_H;
+                            this.vy         = 0;
+                            this.onPlatform = p;
+                            this.onLand(p);
+                            break;
+                        }
+                    }
+                }
+
+                // ── Trail ─────────────────────────────────────────────────
+                this.trail.push({ x: this.x + PLAYER_W / 2, y: this.y + PLAYER_H / 2 });
+                if (this.trail.length > 12) this.trail.shift();
+
+                // ── Invincibility countdown ───────────────────────────────
+                if (this.invincible) {
+                    this.invTimer--;
+                    if (this.invTimer <= 0) this.invincible = false;
+                }
+                if (this.flashTimer > 0) this.flashTimer--;
+            }
+
+            onLand(p) {
+                if (p.type === 'spiky') {
+                    this.takeDamage();
+                } else if (p.type === 'cloud' && p.cloudTimer < 0) {
+                    p.cloudTimer = CLOUD_LIFE;
+                }
+            }
+
+            takeDamage() {
+                if (this.invincible) return;
+                this.lives--;
+                this.invincible = true;
+                this.invTimer   = INV_FRAMES;
+                this.flashTimer = INV_FRAMES;
+                spawnParticles(this.x + PLAYER_W / 2, this.y + PLAYER_H / 2, '#ff4444', 18);
+                updateHeartsUI();
+                if (this.lives <= 0) {
+                    triggerGameOver('血量耗尽！');
+                }
+            }
+
+            draw() {
+                // ── Trail ─────────────────────────────────────────────────
+                ctx.save();
+                this.trail.forEach((pt, i) => {
+                    const a = (i / this.trail.length) * 0.2;
+                    ctx.fillStyle = `rgba(74, 158, 255, ${a})`;
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, (i / this.trail.length) * (PLAYER_W / 2), 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.restore();
+
+                // ── Blink when invincible ─────────────────────────────────
+                if (this.invincible && Math.floor(Date.now() / 80) % 2 === 0) return;
+
+                ctx.save();
+
+                const x = Math.round(this.x);
+                const y = Math.round(this.y);
+                const w = PLAYER_W;
+                const h = PLAYER_H;
+
+                // Glow
+                ctx.shadowBlur  = 14;
+                ctx.shadowColor = '#4a9eff';
+
+                // ── Body (lower rectangle) ────────────────────────────────
+                const bodyG = ctx.createLinearGradient(x, y + h * 0.44, x, y + h);
+                bodyG.addColorStop(0, '#3d8ee0');
+                bodyG.addColorStop(1, '#1a5aaa');
+                ctx.fillStyle = bodyG;
+                roundRect(ctx, x + 2, y + h * 0.44, w - 4, h * 0.56, 3);
+                ctx.fill();
+
+                // ── Head (upper rounded rectangle) ────────────────────────
+                const headG = ctx.createLinearGradient(x, y, x, y + h * 0.5);
+                headG.addColorStop(0, '#72b8ff');
+                headG.addColorStop(1, '#3d8ee0');
+                ctx.fillStyle = headG;
+                roundRect(ctx, x + 3, y + 2, w - 6, h * 0.44, 5);
+                ctx.fill();
+
+                // ── Eyes ──────────────────────────────────────────────────
+                ctx.shadowBlur  = 10;
+                ctx.shadowColor = '#00f5ff';
+                ctx.fillStyle   = '#00f5ff';
+                const eyeY = y + h * 0.18;
+                ctx.beginPath();
+                ctx.arc(x + w * 0.3,  eyeY, 4, 0, Math.PI * 2);
+                ctx.arc(x + w * 0.7,  eyeY, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+                ctx.fillStyle  = '#003333';
+                ctx.beginPath();
+                ctx.arc(x + w * 0.3 + 1, eyeY, 2, 0, Math.PI * 2);
+                ctx.arc(x + w * 0.7 + 1, eyeY, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // ── Mouth (small arc) ─────────────────────────────────────
+                ctx.strokeStyle = '#1a4488';
+                ctx.lineWidth   = 1.5;
+                ctx.beginPath();
+                ctx.arc(x + w / 2, y + h * 0.36, 5, 0.1 * Math.PI, 0.9 * Math.PI);
+                ctx.stroke();
+
+                // ── Antenna ───────────────────────────────────────────────
+                ctx.shadowBlur  = 6;
+                ctx.shadowColor = '#ffd700';
+                ctx.strokeStyle = '#4a9eff';
+                ctx.lineWidth   = 2;
+                ctx.beginPath();
+                ctx.moveTo(x + w / 2, y + 2);
+                ctx.lineTo(x + w / 2, y - 7);
+                ctx.stroke();
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.arc(x + w / 2, y - 8, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // ── Legs ──────────────────────────────────────────────────
+                ctx.shadowBlur = 0;
+                ctx.fillStyle  = '#1a5aaa';
+                ctx.fillRect(x + 4,      y + h - 5, 8, 5);
+                ctx.fillRect(x + w - 12, y + h - 5, 8, 5);
+
+                ctx.restore();
+            }
+        }
+
+        // ─── Platform spawning ────────────────────────────────────────────
+        function pickType() {
+            const r = Math.random();
+            if (r < 0.38) return 'iron';
+            if (r < 0.65) return 'cloud';
+            if (r < 0.85) return 'conveyor';
+            return 'spiky';
+        }
+
+        function spawnWave(yPos) {
+            // Generate 2–3 non-overlapping platforms across the screen width
+            const segments = [];
+            let cursor = randInt(0, 15);
+            while (cursor < W - PLAT_MIN_W) {
+                const pw  = randInt(PLAT_MIN_W, Math.min(PLAT_MAX_W, W - cursor - 10));
+                segments.push({ x: cursor, w: pw });
+                cursor += pw + randInt(28, 72);
+            }
+
+            // Ensure at least 2 platforms; if only 1, force another
+            if (segments.length < 2) {
+                segments.push({ x: randInt(10, W - PLAT_MIN_W - 10), w: randInt(PLAT_MIN_W, PLAT_MAX_W) });
+            }
+
+            // Limit to 4 platforms per wave
+            const chosen = segments.slice(0, 4);
+            for (const seg of chosen) {
+                platforms.push(new Platform(seg.x, yPos, seg.w, pickType()));
+            }
+        }
+
+        function initPlatforms() {
+            platforms = [];
+            // Starting platform (wide iron) under the player
+            const startPlatY = H * 0.55;
+            platforms.push(new Platform(W / 2 - 70, startPlatY, 140, 'iron'));
+            // Pre-spawn several waves below
+            for (let i = 1; i <= 5; i++) {
+                spawnWave(startPlatY + i * 110);
+            }
+        }
+
+        // ─── Game over ────────────────────────────────────────────────────
+        function triggerGameOver(reason) {
+            gameState = 'gameover';
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('robotPlatformHigh', highScore);
+            }
+            document.getElementById('gameover-reason').textContent = reason;
+            document.getElementById('final-time').textContent      = Math.floor(survivalTime);
+            document.getElementById('final-score').textContent     = '得分: ' + score;
+            document.getElementById('gameover-overlay').style.display = 'flex';
+            document.getElementById('pause-btn').disabled          = true;
+        }
+
+        // ─── UI helpers ───────────────────────────────────────────────────
+        function updateHeartsUI() {
+            for (let i = 0; i < MAX_LIVES; i++) {
+                const el = document.getElementById('heart-' + i);
+                if (el) el.classList.toggle('lost', i >= player.lives);
+            }
+        }
+
+        function updateSidePanel() {
+            document.getElementById('score-display').textContent      = score;
+            document.getElementById('high-score-display').textContent = highScore;
+            document.getElementById('time-display').textContent       = Math.floor(survivalTime) + 's';
+            const ratio = Math.min(1, (platformSpeed - INITIAL_SPEED) / (MAX_SPEED - INITIAL_SPEED));
+            document.getElementById('speed-display').textContent = platformSpeed.toFixed(1) + 'x';
+            document.getElementById('speed-bar').style.width    = (ratio * 100) + '%';
+        }
+
+        // ─── Draw HUD (on canvas) ─────────────────────────────────────────
+        function drawHUD() {
+            if (gameState === 'paused') {
+                ctx.save();
+                ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                ctx.fillRect(0, 0, W, H);
+                ctx.font      = 'bold 36px Segoe UI, sans-serif';
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'center';
+                ctx.shadowBlur  = 20;
+                ctx.shadowColor = '#b388ff';
+                ctx.fillText('⏸ 暂停', W / 2, H / 2);
+                ctx.restore();
+            }
+        }
+
+        // ─── Main game loop ───────────────────────────────────────────────
+        function gameLoop(ts) {
+            raf = requestAnimationFrame(gameLoop);
+
+            if (gameState !== 'playing') {
+                drawBackground();
+                for (const p of platforms) p.draw();
+                if (player) player.draw();
+                drawHUD();
+                return;
+            }
+
+            frameTick++;
+            survivalTime = frameTick / 60;
+            score        = Math.floor(survivalTime * 10);
+
+            // Speed ramp: +0.0004 per frame, capped
+            platformSpeed = Math.min(MAX_SPEED, INITIAL_SPEED + frameTick * 0.0004);
+
+            // Spawn wave
+            spawnTimer--;
+            const interval = Math.max(
+                SPAWN_INTERVAL_MIN,
+                SPAWN_INTERVAL_INIT - Math.floor(frameTick / 200) * 3
+            );
+            if (spawnTimer <= 0) {
+                spawnWave(H + PLAT_H + 5);
+                spawnTimer = interval;
+            }
+
+            // Update platforms
+            platforms = platforms.filter(p => {
+                p.update();
+                return !p.isOffScreen();
+            });
+
+            // Update player
+            player.update();
+
+            // Update particles
+            particles = particles.filter(p => {
+                p.update();
+                return p.life > 0;
+            });
+
+            // ── Game-over checks ──────────────────────────────────────────
+            if (player.top < -PLAYER_H) {
+                triggerGameOver('被平台顶出屏幕！');
+                return;
+            }
+            if (player.top > H) {
+                triggerGameOver('掉落了！');
+                return;
+            }
+
+            // ── Draw ──────────────────────────────────────────────────────
+            drawBackground();
+            for (const p of platforms) p.draw();
+            player.draw();
+            for (const p of particles) p.draw();
+
+            // Update side panel every 6 frames for performance
+            if (frameTick % 6 === 0) {
+                updateSidePanel();
+                updateHeartsUI();
+            }
+        }
+
+        // ─── Start / Restart ──────────────────────────────────────────────
+        function startGame() {
+            gameState     = 'playing';
+            score         = 0;
+            survivalTime  = 0;
+            frameTick     = 0;
+            platformSpeed = INITIAL_SPEED;
+            spawnTimer    = 20;
+            particles     = [];
+            player        = new Player();
+            initPlatforms();
+            initStars();
+            updateSidePanel();
+            updateHeartsUI();
+
+            document.getElementById('start-overlay').style.display    = 'none';
+            document.getElementById('gameover-overlay').style.display = 'none';
+            document.getElementById('pause-btn').disabled             = false;
+            document.getElementById('pause-btn').textContent          = '暂停';
+
+            // Show touch controls on mobile
+            if ('ontouchstart' in window) {
+                document.getElementById('touch-controls').style.display = 'flex';
+            }
+        }
+
+        function pauseGame() {
+            if (gameState === 'playing') {
+                gameState = 'paused';
+                document.getElementById('pause-btn').textContent = '继续';
+            } else if (gameState === 'paused') {
+                gameState = 'playing';
+                document.getElementById('pause-btn').textContent = '暂停';
+            }
+        }
+
+        // ─── Input ────────────────────────────────────────────────────────
+        document.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (gameState === 'playing' || gameState === 'paused') pauseGame();
+            }
+        });
+        document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+        // Buttons
+        document.getElementById('start-overlay-btn').addEventListener('click', startGame);
+        document.getElementById('start-btn').addEventListener('click', () => {
+            if (gameState === 'start' || gameState === 'gameover') startGame();
+        });
+        document.getElementById('pause-btn').addEventListener('click', pauseGame);
+        document.getElementById('restart-btn').addEventListener('click', startGame);
+
+        // Touch buttons
+        function setupTouch(id, setter) {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', e => { e.preventDefault(); setter(true);  el.classList.add('pressed'); },    { passive: false });
+            el.addEventListener('touchend',   e => { e.preventDefault(); setter(false); el.classList.remove('pressed'); }, { passive: false });
+            el.addEventListener('mousedown',  () => { setter(true);  el.classList.add('pressed'); });
+            el.addEventListener('mouseup',    () => { setter(false); el.classList.remove('pressed'); });
+            el.addEventListener('mouseleave', () => { setter(false); el.classList.remove('pressed'); });
+        }
+        setupTouch('touch-left',  v => { touchLeft  = v; });
+        setupTouch('touch-right', v => { touchRight = v; });
+
+        // ─── Boot ─────────────────────────────────────────────────────────
+        document.getElementById('high-score-display').textContent = highScore;
+        initStars();
+        initPlatforms();
+        player = new Player();
+
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
