@@ -28,7 +28,7 @@ let keys = new Set();
 
 function resetGame() {
     game = {
-        player: { x: W / 2, y: H - 70, size: 24, speed: 5, cd: 0 },
+        player: { x: W / 2, y: H - 70, size: 24, hitboxHalf: 12, speed: 5, cd: 0 },
         bullets: [],
         blocks: [],
         score: 0,
@@ -100,12 +100,13 @@ function drawTetromino(block) {
 }
 
 function collidePlayerWithBlock(p, b) {
+    const half = p.hitboxHalf;
     for (const c of b.shape) {
         const cx = b.x + c[0] * b.size;
         const cy = b.y + c[1] * b.size;
         if (
-            p.x + p.size > cx && p.x - p.size < cx + b.size &&
-            p.y + p.size > cy && p.y - p.size < cy + b.size
+            p.x + half > cx && p.x - half < cx + b.size &&
+            p.y + half > cy && p.y - half < cy + b.size
         ) return true;
     }
     return false;
