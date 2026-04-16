@@ -15,6 +15,9 @@ const WAVE_SPEED_INCREMENT = 0.14;
 const RANDOM_SPEED_VARIANCE = 1.2;
 const BULLET_BLOCK_PADDING = 8;
 const WAVE_SCORE_THRESHOLD = 180;
+const STAR_X_SPACING = 139;
+const STAR_Y_OFFSET = 281;
+const STAR_ANIMATION_SPEED = 0.03;
 
 const eventsPool = [
     { name: '反向控制', duration: 7000, apply: s => (s.reverse = true), clear: s => (s.reverse = false) },
@@ -68,7 +71,7 @@ function spawnBlock() {
 
 function shoot() {
     if (game.player.cd > 0 || game.over) return;
-    game.bullets.push({ x: game.player.x, y: game.player.y - 10, r: 4, vy: -8 });
+    game.bullets.push({ x: game.player.x, y: game.player.y - 10, radius: 4, vy: -8 });
     game.player.cd = 9;
 }
 
@@ -202,8 +205,8 @@ function draw() {
     ctx.clearRect(0, 0, W, H);
 
     for (let i = 0; i < 25; i++) {
-        const x = (i * 139) % W;
-        const y = (i * 281 + performance.now() * 0.03) % H;
+        const x = (i * STAR_X_SPACING) % W;
+        const y = (i * STAR_Y_OFFSET + performance.now() * STAR_ANIMATION_SPEED) % H;
         ctx.fillStyle = 'rgba(180,160,255,0.25)';
         ctx.fillRect(x, y, 2, 2);
     }
@@ -219,7 +222,7 @@ function draw() {
     for (const bullet of game.bullets) {
         ctx.fillStyle = '#ffe07b';
         ctx.beginPath();
-        ctx.arc(bullet.x, bullet.y, bullet.r, 0, Math.PI * 2);
+        ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
         ctx.fill();
     }
 
