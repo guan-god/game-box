@@ -18,6 +18,8 @@ const WAVE_SCORE_THRESHOLD = 180;
 const STAR_X_SPACING = 139;
 const STAR_Y_OFFSET = 281;
 const STAR_ANIMATION_SPEED = 0.03;
+const PLAYER_SHOOT_COOLDOWN = 5;
+const BULLET_SPEED = -11;
 
 const eventsPool = [
     { name: '反向控制', duration: 7000, apply: s => (s.reverse = true), clear: s => (s.reverse = false) },
@@ -33,6 +35,7 @@ function resetGame() {
     game = {
         player: { x: W / 2, y: H - 70, size: 24, hitboxHalf: 12, speed: 5, cd: 0 },
         bullets: [],
+        hitParticles: [],
         blocks: [],
         score: 0,
         energy: 100,
@@ -45,7 +48,9 @@ function resetGame() {
         darkness: false,
         rush: 1,
         lucky: 1,
-        messageTimer: 0
+        messageTimer: 0,
+        shake: 0,
+        flash: 0
     };
     ui.event.textContent = '当前异变：无';
 }
@@ -71,8 +76,30 @@ function spawnBlock() {
 
 function shoot() {
     if (game.player.cd > 0 || game.over) return;
-    game.bullets.push({ x: game.player.x, y: game.player.y - 10, radius: 4, vy: -8 });
-    game.player.cd = 9;
+    game.bullets.push({ x: game.player.x, y: game.player.y - 10, radius: 5, vy: BULLET_SPEED });
+    game.player.cd = PLAYER_SHOOT_COOLDOWN;
+}
+
+function triggerImpact(intensity, flashStrength = 0.16) {
+    game.shake = Math.max(game.shake, intensity);
+    game.flash = Math.max(game.flash, flashStrength);
+}
+
+function spawnHitParticles(x, y, color, count = 8, speed = 3.5) {
+    for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const velocity = 1 + Math.random() * speed;
+        game.hitParticles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * velocity,
+            vy: Math.sin(angle) * velocity,
+            size: 2 + Math.random() * 2.6,
+            life: 1,
+            decay: 0.04 + Math.random() * 0.02,
+            color
+        });
+    }
 }
 
 function triggerEvent(now) {
@@ -142,6 +169,12 @@ function update(now) {
     game.player.x += dir * game.player.speed;
     game.player.x = Math.max(20, Math.min(W - 20, game.player.x));
     if (game.player.cd > 0) game.player.cd--;
+    if (keys.has(' ') || keys.has('j')) shoot();
+
+    if (game.shake > 0) game.shake *= 0.84;
+    if (game.shake < 0.15) game.shake = 0;
+    if (game.flash > 0) game.flash *= 0.8;
+    if (game.flash < 0.01) game.flash = 0;
 
     game.spawnTick++;
     const spawnRate = Math.max(15, 48 - game.wave * 2);
@@ -163,12 +196,15 @@ function update(now) {
         if (block.y > H + 40) {
             game.blocks.splice(i, 1);
             game.energy -= 8;
+            triggerImpact(2.4, 0.12);
             continue;
         }
 
         if (collidePlayerWithBlock(game.player, block)) {
             game.blocks.splice(i, 1);
             game.energy -= 20;
+            triggerImpact(6, 0.22);
+            spawnHitParticles(game.player.x, game.player.y, '#ff6b6b', 16, 4.2);
             continue;
         }
 
@@ -177,13 +213,28 @@ function update(now) {
             if (collideBulletWithBlock(bullet, block)) {
                 game.bullets.splice(j, 1);
                 block.hp--;
+                spawnHitParticles(bullet.x, bullet.y, block.color, 7, 3.2);
+                triggerImpact(2.6, 0.1);
                 if (block.hp <= 0) {
                     game.blocks.splice(i, 1);
                     game.score += 10 * game.lucky;
+                    spawnHitParticles(block.x + block.size, block.y + block.size, block.color, 18, 4.5);
+                    triggerImpact(5.2, 0.18);
                 }
                 break;
             }
         }
+    }
+
+    for (let i = game.hitParticles.length - 1; i >= 0; i--) {
+        const p = game.hitParticles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.96;
+        p.vy *= 0.96;
+        p.life -= p.decay;
+        p.size *= 0.97;
+        if (p.life <= 0 || p.size <= 0.2) game.hitParticles.splice(i, 1);
     }
 
     if (game.score > game.wave * WAVE_SCORE_THRESHOLD) game.wave++;
@@ -203,6 +254,12 @@ function update(now) {
 
 function draw() {
     ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    if (game.shake > 0) {
+        const shakeX = (Math.random() - 0.5) * game.shake;
+        const shakeY = (Math.random() - 0.5) * game.shake;
+        ctx.translate(shakeX, shakeY);
+    }
 
     for (let i = 0; i < 25; i++) {
         const x = (i * STAR_X_SPACING) % W;
@@ -225,6 +282,15 @@ function draw() {
         ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
         ctx.fill();
     }
+
+    for (const p of game.hitParticles) {
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
 
     for (const block of game.blocks) drawTetromino(block);
 
@@ -256,6 +322,12 @@ function draw() {
         ctx.font = '24px sans-serif';
         ctx.fillText(`最终分数：${game.score}`, W / 2, H / 2 + 25);
     }
+
+    if (game.flash > 0) {
+        ctx.fillStyle = `rgba(255,255,255,${Math.min(game.flash, 0.25)})`;
+        ctx.fillRect(0, 0, W, H);
+    }
+    ctx.restore();
 }
 
 function loop(now) {
