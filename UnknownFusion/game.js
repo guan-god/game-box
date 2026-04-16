@@ -20,6 +20,7 @@ const STAR_Y_OFFSET = 281;
 const STAR_ANIMATION_SPEED = 0.03;
 const PLAYER_SHOOT_COOLDOWN = 5;
 const BULLET_SPEED = -11;
+const BULLET_RADIUS = 5;
 const SHAKE_DECAY_RATE = 0.84;
 const SHAKE_THRESHOLD = 0.15;
 const FLASH_DECAY_RATE = 0.8;
@@ -80,7 +81,7 @@ function spawnBlock() {
 
 function shoot() {
     if (game.player.cd > 0 || game.over) return;
-    game.bullets.push({ x: game.player.x, y: game.player.y - 10, radius: 5, vy: BULLET_SPEED });
+    game.bullets.push({ x: game.player.x, y: game.player.y - 10, radius: BULLET_RADIUS, vy: BULLET_SPEED });
     game.player.cd = PLAYER_SHOOT_COOLDOWN;
 }
 
@@ -173,7 +174,7 @@ function update(now) {
     game.player.x += dir * game.player.speed;
     game.player.x = Math.max(20, Math.min(W - 20, game.player.x));
     if (game.player.cd > 0) game.player.cd--;
-    if ((keys.has(' ') || keys.has('j')) && game.player.cd <= 0) shoot();
+    if (keys.has(' ') || keys.has('j')) shoot();
 
     if (game.shake > 0) game.shake *= SHAKE_DECAY_RATE;
     if (game.shake < SHAKE_THRESHOLD) game.shake = 0;
