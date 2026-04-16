@@ -14,7 +14,7 @@ const BASE_BLOCK_SPEED = 1.1;
 const WAVE_SPEED_INCREMENT = 0.14;
 const RANDOM_SPEED_VARIANCE = 1.2;
 const BULLET_BLOCK_PADDING = 8;
-const BLOCK_BOUND_FACTOR = 3;
+const WAVE_SCORE_THRESHOLD = 180;
 
 const eventsPool = [
     { name: '反向控制', duration: 7000, apply: s => (s.reverse = true), clear: s => (s.reverse = false) },
@@ -112,12 +112,19 @@ function collidePlayerWithBlock(p, b) {
 }
 
 function collideBulletWithBlock(bullet, block) {
-    return (
-        bullet.x > block.x - BULLET_BLOCK_PADDING &&
-        bullet.x < block.x + block.size * BLOCK_BOUND_FACTOR + BULLET_BLOCK_PADDING &&
-        bullet.y > block.y - BULLET_BLOCK_PADDING &&
-        bullet.y < block.y + block.size * BLOCK_BOUND_FACTOR + BULLET_BLOCK_PADDING
-    );
+    for (const cell of block.shape) {
+        const cx = block.x + cell[0] * block.size;
+        const cy = block.y + cell[1] * block.size;
+        if (
+            bullet.x > cx - BULLET_BLOCK_PADDING &&
+            bullet.x < cx + block.size + BULLET_BLOCK_PADDING &&
+            bullet.y > cy - BULLET_BLOCK_PADDING &&
+            bullet.y < cy + block.size + BULLET_BLOCK_PADDING
+        ) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function update(now) {
@@ -175,7 +182,7 @@ function update(now) {
         }
     }
 
-    if (game.score > game.wave * 180) game.wave++;
+    if (game.score > game.wave * WAVE_SCORE_THRESHOLD) game.wave++;
 
     triggerEvent(now);
 
