@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>未知裂隙：方块突围</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at top, #1d1147 0%, #0a0619 70%);
+            color: #f4f2ff;
+            font-family: "Segoe UI", sans-serif;
+            padding: 16px;
+        }
+        .wrap {
+            width: min(900px, 100%);
+            display: grid;
+            grid-template-columns: 1fr 260px;
+            gap: 18px;
+        }
+        canvas {
+            width: 100%;
+            max-width: 620px;
+            aspect-ratio: 10 / 16;
+            border: 2px solid #8466ff;
+            border-radius: 12px;
+            background: linear-gradient(180deg, #130c31 0%, #090616 100%);
+            box-shadow: 0 0 30px rgba(132, 102, 255, 0.25);
+        }
+        .panel {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        h1 { font-size: 22px; }
+        .stat { font-size: 14px; line-height: 1.6; }
+        .tips { font-size: 13px; color: #d5ccff; line-height: 1.55; }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(132, 102, 255, 0.25);
+            font-size: 12px;
+        }
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            background: #6d4dff;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button:hover { background: #7c60ff; }
+        @media (max-width: 860px) {
+            .wrap { grid-template-columns: 1fr; }
+            canvas { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <canvas id="game" width="500" height="800"></canvas>
+        <div class="panel">
+            <h1>未知裂隙：方块突围</h1>
+            <div class="badge">融合：俄罗斯方块 + 幸存者割草 + Roguelike随机事件</div>
+            <div class="stat" id="score">分数：0</div>
+            <div class="stat" id="wave">波次：1</div>
+            <div class="stat" id="energy">能量：100</div>
+            <div class="stat" id="event">当前异变：无</div>
+            <button id="restart">重新开始</button>
+            <div class="tips">
+                操作：A/D 或 ←/→ 移动，J 或 空格 发射。<br>
+                每隔一段时间会触发未知异变：反向控制、暗域、狂潮等。<br>
+                击碎下落方块可得分，躲避碰撞，看看你能撑到第几波。
+            </div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
