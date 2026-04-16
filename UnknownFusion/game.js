@@ -20,6 +20,10 @@ const STAR_Y_OFFSET = 281;
 const STAR_ANIMATION_SPEED = 0.03;
 const PLAYER_SHOOT_COOLDOWN = 5;
 const BULLET_SPEED = -11;
+const SHAKE_DECAY_RATE = 0.84;
+const SHAKE_THRESHOLD = 0.15;
+const FLASH_DECAY_RATE = 0.8;
+const FLASH_THRESHOLD = 0.01;
 
 const eventsPool = [
     { name: '反向控制', duration: 7000, apply: s => (s.reverse = true), clear: s => (s.reverse = false) },
@@ -85,10 +89,10 @@ function triggerImpact(intensity, flashStrength = 0.16) {
     game.flash = Math.max(game.flash, flashStrength);
 }
 
-function spawnHitParticles(x, y, color, count = 8, speed = 3.5) {
+function spawnHitParticles(x, y, color, count = 8, velocityRange = 3.5) {
     for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const velocity = 1 + Math.random() * speed;
+        const velocity = 1 + Math.random() * velocityRange;
         game.hitParticles.push({
             x,
             y,
@@ -169,12 +173,12 @@ function update(now) {
     game.player.x += dir * game.player.speed;
     game.player.x = Math.max(20, Math.min(W - 20, game.player.x));
     if (game.player.cd > 0) game.player.cd--;
-    if (keys.has(' ') || keys.has('j')) shoot();
+    if ((keys.has(' ') || keys.has('j')) && game.player.cd <= 0) shoot();
 
-    if (game.shake > 0) game.shake *= 0.84;
-    if (game.shake < 0.15) game.shake = 0;
-    if (game.flash > 0) game.flash *= 0.8;
-    if (game.flash < 0.01) game.flash = 0;
+    if (game.shake > 0) game.shake *= SHAKE_DECAY_RATE;
+    if (game.shake < SHAKE_THRESHOLD) game.shake = 0;
+    if (game.flash > 0) game.flash *= FLASH_DECAY_RATE;
+    if (game.flash < FLASH_THRESHOLD) game.flash = 0;
 
     game.spawnTick++;
     const spawnRate = Math.max(15, 48 - game.wave * 2);
