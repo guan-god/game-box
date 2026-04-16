@@ -10,6 +10,11 @@ const ui = {
 
 const W = canvas.width;
 const H = canvas.height;
+const BASE_BLOCK_SPEED = 1.1;
+const WAVE_SPEED_INCREMENT = 0.14;
+const RANDOM_SPEED_VARIANCE = 1.2;
+const BULLET_BLOCK_PADDING = 8;
+const BLOCK_BOUND_FACTOR = 3;
 
 const eventsPool = [
     { name: '反向控制', duration: 7000, apply: s => (s.reverse = true), clear: s => (s.reverse = false) },
@@ -57,7 +62,7 @@ function spawnBlock() {
     const shape = randomTetrominoShape();
     const size = 22;
     const x = 30 + Math.random() * (W - 120);
-    const speed = (1.1 + game.wave * 0.14 + Math.random() * 1.2) * game.rush;
+    const speed = (BASE_BLOCK_SPEED + game.wave * WAVE_SPEED_INCREMENT + Math.random() * RANDOM_SPEED_VARIANCE) * game.rush;
     game.blocks.push({ x, y: -70, size, shape, speed, hp: 4, color: `hsl(${Math.random()*360},80%,62%)` });
 }
 
@@ -106,6 +111,15 @@ function collidePlayerWithBlock(p, b) {
     return false;
 }
 
+function collideBulletWithBlock(bullet, block) {
+    return (
+        bullet.x > block.x - BULLET_BLOCK_PADDING &&
+        bullet.x < block.x + block.size * BLOCK_BOUND_FACTOR + BULLET_BLOCK_PADDING &&
+        bullet.y > block.y - BULLET_BLOCK_PADDING &&
+        bullet.y < block.y + block.size * BLOCK_BOUND_FACTOR + BULLET_BLOCK_PADDING
+    );
+}
+
 function update(now) {
     if (game.over) return;
 
@@ -149,7 +163,7 @@ function update(now) {
 
         for (let j = game.bullets.length - 1; j >= 0; j--) {
             const bullet = game.bullets[j];
-            if (bullet.x > block.x - 8 && bullet.x < block.x + block.size * 3 + 8 && bullet.y > block.y - 8 && bullet.y < block.y + block.size * 3 + 8) {
+            if (collideBulletWithBlock(bullet, block)) {
                 game.bullets.splice(j, 1);
                 block.hp--;
                 if (block.hp <= 0) {
