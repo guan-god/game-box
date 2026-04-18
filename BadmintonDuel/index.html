@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>双人羽毛球对打</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #1f384f, #0e1a28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #f3f7ff;
+    }
+    .container {
+      width: min(980px, 95vw);
+      display: grid;
+      gap: 14px;
+    }
+    canvas {
+      width: 100%;
+      height: auto;
+      border: 2px solid #89c2ff;
+      border-radius: 10px;
+      background: linear-gradient(#6bc2ff, #7ce0ff 45%, #3fb36f 46%, #2e9358);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+    .panel {
+      background: rgba(11, 24, 38, 0.85);
+      border: 1px solid rgba(137, 194, 255, 0.35);
+      border-radius: 10px;
+      padding: 12px;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 10px;
+    }
+    strong { color: #9fd4ff; }
+    .mode-buttons {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 1px solid #7cb7f3;
+      background: #1b3755;
+      color: #e8f3ff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover { background: #27507a; }
+    kbd {
+      background: #1f3349;
+      border: 1px solid #6c9ccd;
+      border-bottom-width: 3px;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <canvas id="game" width="960" height="540"></canvas>
+    <section class="panel controls">
+      <div>
+        <strong>左侧玩家（红）</strong><br />
+        移动：<kbd>A</kbd> <kbd>D</kbd><br />
+        高远球：<kbd>W</kbd><br />
+        扣杀：<kbd>S</kbd><br />
+        放网：<kbd>Q</kbd><br />
+        跳跃：<kbd>E</kbd>（可空中扣杀）
+      </div>
+      <div>
+        <strong>右侧玩家（蓝）</strong><br />
+        PVP 移动：<kbd>←</kbd> <kbd>→</kbd><br />
+        高远球：<kbd>↑</kbd>　扣杀：<kbd>↓</kbd>　放网：<kbd>/</kbd><br />
+        跳跃：<kbd>右 Shift</kbd>（PVP）<br />
+        人机模式下右侧由电脑自动控制。
+      </div>
+      <div>
+        <strong>玩法说明</strong><br />
+        开球不会自动发出：每回合先站位，按任意击球键才发球。
+        加入顺/逆风、Perfect 击球、节奏槽、击球震屏与粒子特效，先到 11 分获胜。<br />
+        <div class="mode-buttons">
+          <button id="modePvp">切换 PVP</button>
+          <button id="modeCpu">切换 人机</button>
+          <button id="restartBtn">重新开始</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
