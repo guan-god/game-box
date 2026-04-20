@@ -535,11 +535,16 @@ function drawCutLine() {
 
 // 计算面积 - 使用精确的切割算法
 function calculateAreas() {
-    const shape = gameState.currentShape;
-    const line = {
-        start: gameState.startPoint,
-        end: gameState.endPoint
-    };
+    const shape = getCuttablePolygon(gameState.currentShape);
+    if (!shape || shape.length < 3) {
+        updateStatus('当前形状无法切割，请换一个形状再试');
+        return;
+    }
+    const line = extendCutLine(gameState.startPoint, gameState.endPoint);
+    if (!line) {
+        updateStatus('切割线太短，请拖动更长的切割线');
+        return;
+    }
     
     // 找到所有交点
     const intersections = [];
@@ -551,6 +556,10 @@ function calculateAreas() {
         const intersection = lineIntersection(line.start, line.end, p1, p2);
         
         if (intersection) {
+            const duplicate = intersections.some(it =>
+                Math.hypot(it.point.x - intersection.x, it.point.y - intersection.y) < 0.6
+            );
+            if (duplicate) continue;
             intersections.push({
                 point: intersection,
                 edgeIndex: i,
@@ -637,6 +646,45 @@ function calculateAreas() {
     drawShape();
     drawCutLine();
     drawSplitPolygons(polygons);
+}
+
+// 将任意形状转换为可切割的多边形顶点
+function getCuttablePolygon(shape) {
+    if (!shape) return null;
+    if (Array.isArray(shape)) return shape;
+    
+    if (shape.type === 'boolean' && Array.isArray(shape.shapes)) {
+        const allPoints = [];
+        shape.shapes.forEach(s => {
+            if (Array.isArray(s)) allPoints.push(...s);
+        });
+        return allPoints.length >= 3 ? convexHull(allPoints) : null;
+    }
+    
+    if (shape.type === 'smooth' && Array.isArray(shape.points)) {
+        const sampled = [];
+        for (let i = 0; i < shape.points.length; i += 3) {
+            sampled.push(shape.points[i]);
+        }
+        return sampled.length >= 3 ? convexHull(sampled) : null;
+    }
+    
+    return null;
+}
+
+// 将用户拖拽线段延长到整个画布，避免“一刀切不出去”
+function extendCutLine(start, end) {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 6) return null;
+    const ux = dx / len;
+    const uy = dy / len;
+    const extend = Math.max(canvas.width, canvas.height) * 2;
+    return {
+        start: { x: start.x - ux * extend, y: start.y - uy * extend },
+        end: { x: start.x + ux * extend, y: start.y + uy * extend }
+    };
 }
 
 // 更新百分比图表
