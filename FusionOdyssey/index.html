@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>终极融合：孤胆远征</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #151d33;
+        --accent: #61dafb;
+        --text: #eaf2ff;
+        --danger: #ff5b7f;
+        --ok: #5dffa7;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at 20% 20%, #202b51, #0b1020 55%);
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+      }
+      .wrap {
+        width: min(1200px, 96vw);
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 14px;
+      }
+      canvas {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: linear-gradient(#0d1326, #080d1a);
+        border: 1px solid #27355f;
+        border-radius: 12px;
+        box-shadow: 0 12px 50px #000a;
+      }
+      .hud {
+        background: color-mix(in srgb, var(--panel) 90%, black 10%);
+        border: 1px solid #27355f;
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .title { font-size: 20px; font-weight: 700; }
+      .row { display: flex; justify-content: space-between; gap: 10px; }
+      .bar {
+        height: 10px;
+        border-radius: 100px;
+        overflow: hidden;
+        background: #0e152a;
+        border: 1px solid #2f3f70;
+      }
+      .fill { height: 100%; width: 0%; }
+      #hpFill { background: linear-gradient(90deg, #ff5478, #ff9ab0); }
+      #xpFill { background: linear-gradient(90deg, #58e6ff, #88ffd5); }
+      .muted { color: #9fb0da; font-size: 13px; line-height: 1.5; }
+      .kbd { color: #fff; background: #223158; border-radius: 6px; padding: 1px 6px; }
+      .panel {
+        margin-top: 8px;
+        border: 1px solid #324a83;
+        border-radius: 10px;
+        padding: 8px;
+        background: #111b35;
+      }
+      .upgrade {
+        border: 1px solid #2f4479;
+        border-radius: 10px;
+        padding: 10px;
+        margin-top: 8px;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .upgrade:hover { border-color: var(--accent); transform: translateY(-1px); }
+      .hide { display: none; }
+      @media (max-width: 900px) {
+        .wrap { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <canvas id="game" width="1600" height="900"></canvas>
+      <aside class="hud">
+        <div class="title">终极融合：孤胆远征</div>
+        <div class="row"><span>波次</span><b id="wave">1</b></div>
+        <div class="row"><span>分数</span><b id="score">0</b></div>
+        <div class="row"><span>生存时间</span><b id="time">00:00</b></div>
+        <div class="row"><span>随机事件</span><b id="event">无</b></div>
+
+        <div>生命值</div>
+        <div class="bar"><div class="fill" id="hpFill"></div></div>
+        <div>经验值</div>
+        <div class="bar"><div class="fill" id="xpFill"></div></div>
+
+        <div class="panel">
+          <div class="row"><span>等级</span><b id="lvl">1</b></div>
+          <div class="row"><span>武器</span><b id="weapon">脉冲步枪</b></div>
+          <div class="row"><span>冲刺冷却</span><b id="dash">0.0s</b></div>
+          <div class="row"><span>过载槽(Q)</span><b id="overdrive">0%</b></div>
+        </div>
+
+        <div id="upgradePanel" class="panel hide">
+          <b>升级选择（按 <span class="kbd">1</span>/<span class="kbd">2</span>/<span class="kbd">3</span>）</b>
+          <div id="upgradeList"></div>
+        </div>
+
+        <div class="muted">
+          <div><span class="kbd">WASD</span> 移动，<span class="kbd">Space</span> 冲刺，<span class="kbd">Q</span> 过载爆发，自动瞄准射击。</div>
+          <div>融合了：幸存者割草、暗黑刷装成长、魂系闪避节奏、BOSS阶段战。</div>
+        </div>
+      </aside>
+    </div>
+    <script src="game.js"></script>
+  </body>
+</html>
