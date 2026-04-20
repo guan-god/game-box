@@ -24,7 +24,7 @@
         place-items: center;
       }
       .wrap {
-        width: min(1200px, 96vw);
+        width: min(1700px, 98vw);
         display: grid;
         grid-template-columns: 1fr 320px;
         gap: 14px;
@@ -84,13 +84,14 @@
   </head>
   <body>
     <div class="wrap">
-      <canvas id="game" width="1600" height="900"></canvas>
+      <canvas id="game" width="1920" height="1080"></canvas>
       <aside class="hud">
         <div class="title">终极融合：孤胆远征</div>
         <div class="row"><span>波次</span><b id="wave">1</b></div>
         <div class="row"><span>分数</span><b id="score">0</b></div>
         <div class="row"><span>生存时间</span><b id="time">00:00</b></div>
         <div class="row"><span>随机事件</span><b id="event">无</b></div>
+        <div class="muted" id="eventDesc">事件提示会显示在这里</div>
 
         <div>生命值</div>
         <div class="bar"><div class="fill" id="hpFill"></div></div>
@@ -112,6 +113,7 @@
         <div class="muted">
           <div><span class="kbd">WASD</span> 移动，<span class="kbd">Space</span> 冲刺，<span class="kbd">Q</span> 过载爆发，自动瞄准射击。</div>
           <div>融合了：幸存者割草、暗黑刷装成长、魂系闪避节奏、BOSS阶段战。</div>
+          <div>新增：地形掩体、掉落道具、事件公告条、Boss 出场动画。</div>
         </div>
       </aside>
     </div>

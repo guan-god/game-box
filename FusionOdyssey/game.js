@@ -11,6 +11,7 @@ const ui = {
   dash: document.getElementById("dash"),
   overdrive: document.getElementById("overdrive"),
   event: document.getElementById("event"),
+  eventDesc: document.getElementById("eventDesc"),
   upgradePanel: document.getElementById("upgradePanel"),
   upgradeList: document.getElementById("upgradeList"),
 };
@@ -31,6 +32,9 @@ const state = {
   gameOver: false,
   flashes: [],
   particles: [],
+  pickups: [],
+  terrains: [],
+  banners: [],
   bullets: [],
   enemyBullets: [],
   enemies: [],
@@ -42,11 +46,15 @@ const state = {
   combo: 0,
   comboTimer: 0,
   shake: 0,
+  arenaRadius: 660,
+  bossIntro: 0,
+  world: { w: 3200, h: 2200 },
+  camera: { x: 0, y: 0 },
 };
 
 const player = {
-  x: canvas.width / 2,
-  y: canvas.height / 2,
+  x: 1600,
+  y: 1100,
   r: 14,
   hp: 120,
   hpMax: 120,
@@ -54,7 +62,7 @@ const player = {
   damage: 20,
   fireRate: 5,
   bulletSpeed: 680,
-  bulletSize: 5,
+  bulletSize: 8,
   pierce: 0,
   xp: 0,
   xpNeed: 100,
@@ -71,6 +79,7 @@ const player = {
   shieldMax: 0,
   shieldRegen: 0,
   overdrive: 0,
+  healMul: 1,
 };
 
 const upgrades = [
@@ -135,6 +144,16 @@ const randomEvents = [
   { id: "bloodmoon", name: "血月压境", desc: "12秒内敌人移速和伤害提升", duration: 12 },
   { id: "jam", name: "火力干扰", desc: "8秒内你的射速下降", duration: 8 },
   { id: "storm", name: "陨星风暴", desc: "随机区域连续落陨石", duration: 9 },
+  { id: "drought", name: "重伤力场", desc: "12秒内治疗效果降低 75%", duration: 12 },
+  { id: "fog", name: "收缩毒圈", desc: "12秒内安全区域缩小，越界持续掉血", duration: 12 },
+  { id: "eliteRush", name: "精英暴动", desc: "12秒内精英刷新概率翻倍", duration: 12 },
+];
+
+const pickupTypes = [
+  { id: "heal", color: "#8bff9f", label: "修复包" },
+  { id: "bomb", color: "#ffd166", label: "清场弹" },
+  { id: "haste", color: "#77d2ff", label: "超频芯片" },
+  { id: "magnet", color: "#d0a2ff", label: "磁吸模块" },
 ];
 
 function addParticle(x, y, n = 8, color = "#7ce6ff") {
@@ -151,14 +170,39 @@ function addParticle(x, y, n = 8, color = "#7ce6ff") {
   }
 }
 
+function createTerrain() {
+  state.terrains = [];
+  const count = 5 + Math.min(8, Math.floor(state.wave / 2));
+  for (let i = 0; i < count; i++) {
+    state.terrains.push({
+      x: rand(180, state.world.w - 180),
+      y: rand(150, state.world.h - 150),
+      r: rand(22, 46),
+    });
+  }
+}
+
+function resolveWallCollision(entity, padding = 8) {
+  for (const t of state.terrains) {
+    const dx = entity.x - t.x;
+    const dy = entity.y - t.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const minD = (entity.r || 10) + t.r + padding;
+    if (d < minD) {
+      entity.x = t.x + (dx / d) * minD;
+      entity.y = t.y + (dy / d) * minD;
+    }
+  }
+}
+
 function spawnEnemy(kind = "chaser") {
   const side = Math.floor(Math.random() * 4);
   let x = 0;
   let y = 0;
-  if (side === 0) [x, y] = [rand(0, canvas.width), -20];
-  if (side === 1) [x, y] = [canvas.width + 20, rand(0, canvas.height)];
-  if (side === 2) [x, y] = [rand(0, canvas.width), canvas.height + 20];
-  if (side === 3) [x, y] = [-20, rand(0, canvas.height)];
+  if (side === 0) [x, y] = [rand(0, state.world.w), -20];
+  if (side === 1) [x, y] = [state.world.w + 20, rand(0, state.world.h)];
+  if (side === 2) [x, y] = [rand(0, state.world.w), state.world.h + 20];
+  if (side === 3) [x, y] = [-20, rand(0, state.world.h)];
 
   const diff = 1 + state.wave * 0.08 + player.level * 0.05 + state.t * 0.004;
   const base = {
@@ -175,9 +219,12 @@ function spawnEnemy(kind = "chaser") {
     state.enemies.push({ ...base, kind, r: 22, hp: (160 + state.wave * 18) * diff, speed: 45 + state.wave + player.level * 0.4, dmg: 18 * diff });
   } else if (kind === "boss") {
     state.enemies.push({ ...base, kind, r: 46, hp: (1800 + state.wave * 250) * (1 + player.level * 0.06), speed: 70 + player.level * 0.8, dmg: 24 * diff, phase: 1 });
+    state.banners.push({ title: "⚠ BOSS 入侵", sub: "高能目标锁定中...", t: 2.8 });
+    state.bossIntro = 1.8;
   }
   const latest = state.enemies[state.enemies.length - 1];
-  if (latest && latest.kind !== "boss" && state.wave >= 4 && Math.random() < 0.18) {
+  const eliteChance = state.activeEvent === "eliteRush" ? 0.4 : 0.18;
+  if (latest && latest.kind !== "boss" && state.wave >= 4 && Math.random() < eliteChance) {
     latest.elite = true;
     latest.r *= 1.2;
     latest.hp *= 1.9;
@@ -231,12 +278,19 @@ function triggerRandomEvent() {
   state.activeEvent = event.id;
   state.eventDuration = event.duration;
   ui.event.textContent = event.name;
+  ui.eventDesc.textContent = event.desc;
+  state.banners.push({ title: `随机事件：${event.name}`, sub: event.desc, t: 2.6 });
+  if (event.id === "drought") player.healMul = 0.25;
+  if (event.id === "fog") state.arenaRadius = Math.min(state.world.w, state.world.h) * 0.22;
 }
 
 function clearEvent() {
   state.activeEvent = null;
   state.eventDuration = 0;
   ui.event.textContent = "无";
+  ui.eventDesc.textContent = "事件已结束";
+  player.healMul = 1;
+  state.arenaRadius = Math.min(state.world.w, state.world.h) * 0.30;
 }
 
 function pickUpgrades() {
@@ -280,6 +334,8 @@ function update(dt) {
   if (state.gameOver) return;
   state.t += dt;
   state.shake = Math.max(0, state.shake - dt);
+  state.bossIntro = Math.max(0, state.bossIntro - dt);
+  state.banners = state.banners.filter((b) => (b.t -= dt) > 0);
   state.comboTimer = Math.max(0, state.comboTimer - dt);
   if (state.comboTimer <= 0) state.combo = 0;
   if (state.paused) return;
@@ -306,8 +362,19 @@ function update(dt) {
   const dashMult = player.dashTimer > 0 ? 3.2 : 1;
   player.x += (mx / mLen) * player.speed * dashMult * dt;
   player.y += (my / mLen) * player.speed * dashMult * dt;
-  player.x = clamp(player.x, 10, canvas.width - 10);
-  player.y = clamp(player.y, 10, canvas.height - 10);
+  player.x = clamp(player.x, 10, state.world.w - 10);
+  player.y = clamp(player.y, 10, state.world.h - 10);
+  resolveWallCollision(player, 3);
+
+  if (state.activeEvent === "fog") {
+    const cx = state.world.w / 2;
+    const cy = state.world.h / 2;
+    const d = Math.hypot(player.x - cx, player.y - cy);
+    if (d > state.arenaRadius) hitPlayer((8 + state.wave) * dt);
+  }
+
+  state.camera.x = clamp(player.x, canvas.width / 2, state.world.w - canvas.width / 2);
+  state.camera.y = clamp(player.y, canvas.height / 2, state.world.h - canvas.height / 2);
 
   state.waveTimer += dt;
   let spawnRate = Math.max(0.08, 0.8 - state.wave * 0.04 - player.level * 0.015);
@@ -329,8 +396,8 @@ function update(dt) {
   if (state.activeEvent) {
     state.eventDuration -= dt;
     if (state.activeEvent === "storm" && Math.random() < dt * 5) {
-      const mx = rand(100, canvas.width - 100);
-      const my = rand(100, canvas.height - 100);
+      const mx = rand(100, state.world.w - 100);
+      const my = rand(100, state.world.h - 100);
       state.particles.push({ x: mx, y: my, vx: 0, vy: 0, life: 0.55, c: "#ffb36b", s: 20, meteor: true });
       if (Math.hypot(player.x - mx, player.y - my) < 85) hitPlayer(18);
       for (const e of state.enemies) {
@@ -343,6 +410,8 @@ function update(dt) {
   if (state.waveTimer > 28 && !state.enemies.some((e) => e.kind === "boss")) {
     state.wave++;
     state.waveTimer = 0;
+    createTerrain();
+    state.banners.push({ title: `第 ${state.wave} 波`, sub: "地形已重构，注意走位", t: 1.8 });
   }
 
   let nearest = null;
@@ -378,14 +447,19 @@ function update(dt) {
     b.y += b.vy * dt;
     b.life -= dt;
     if (b.life <= 0) return false;
-    if (b.x < -20 || b.y < -20 || b.x > canvas.width + 20 || b.y > canvas.height + 20) return false;
+    if (b.x < -20 || b.y < -20 || b.x > state.world.w + 20 || b.y > state.world.h + 20) return false;
+    for (const t of state.terrains) {
+      if (Math.hypot(b.x - t.x, b.y - t.y) < t.r + b.r) return false;
+    }
 
     for (const e of state.enemies) {
       if (Math.hypot(e.x - b.x, e.y - b.y) < e.r + b.r) {
         e.hp -= b.dmg;
         e.hitFlash = 0.08;
         addParticle(b.x, b.y, 6, "#9df6ff");
-        if (player.lifeSteal > 0) player.hp = Math.min(player.hpMax, player.hp + player.hpMax * player.lifeSteal * 0.25);
+        if (player.lifeSteal > 0) {
+          player.hp = Math.min(player.hpMax, player.hp + player.hpMax * player.lifeSteal * 0.18 * player.healMul);
+        }
         if (b.pierce > 0) {
           b.pierce--;
           b.dmg *= 0.8;
@@ -405,7 +479,10 @@ function update(dt) {
       hitPlayer(b.dmg);
       return false;
     }
-    return b.life > 0 && b.x > -20 && b.y > -20 && b.x < canvas.width + 20 && b.y < canvas.height + 20;
+    for (const t of state.terrains) {
+      if (Math.hypot(b.x - t.x, b.y - t.y) < t.r + b.r) return false;
+    }
+    return b.life > 0 && b.x > -20 && b.y > -20 && b.x < state.world.w + 20 && b.y < state.world.h + 20;
   });
 
   state.enemies = state.enemies.filter((e) => {
@@ -424,7 +501,7 @@ function update(dt) {
       e.shootCd -= dt;
       if (e.shootCd <= 0) {
         e.shootCd = rand(0.9, 1.6);
-        state.enemyBullets.push({ x: e.x, y: e.y, vx: (dx / d) * 280, vy: (dy / d) * 280, r: 5, life: 4, dmg: e.dmg * bloodMoonDmg });
+        state.enemyBullets.push({ x: e.x, y: e.y, vx: (dx / d) * 280, vy: (dy / d) * 280, r: 7, life: 4, dmg: e.dmg * bloodMoonDmg });
       }
     } else if (e.kind === "boss") {
       if (e.hp < 900 && e.phase === 1) {
@@ -438,13 +515,14 @@ function update(dt) {
         e.shootCd = e.phase === 1 ? 1.1 : 0.65;
         for (let i = 0; i < (e.phase === 1 ? 8 : 14); i++) {
           const a = (Math.PI * 2 * i) / (e.phase === 1 ? 8 : 14) + state.t * 0.2;
-          state.enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 230, vy: Math.sin(a) * 230, r: 6, life: 5, dmg: 10 * bloodMoonDmg });
+          state.enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 230, vy: Math.sin(a) * 230, r: 8, life: 5, dmg: 10 * bloodMoonDmg });
         }
       }
     } else {
       e.x += (dx / d) * e.speed * bloodMoonSpeed * dt;
       e.y += (dy / d) * e.speed * bloodMoonSpeed * dt;
     }
+    resolveWallCollision(e, 2);
 
     if (d < player.r + e.r) hitPlayer(e.dmg * bloodMoonDmg * dt * 4.5);
 
@@ -455,6 +533,10 @@ function update(dt) {
       state.score += (e.kind === "boss" ? 1000 : e.kind === "tank" ? 120 : 60) * (1 + state.combo * 0.08);
       player.overdrive = Math.min(100, player.overdrive + (e.kind === "boss" ? 55 : e.elite ? 15 : 7));
       state.gems.push({ x: e.x, y: e.y, v: e.kind === "boss" ? 150 : e.kind === "tank" ? 36 : 18, r: e.kind === "boss" ? 9 : 6 });
+      if (Math.random() < (e.kind === "boss" ? 1 : 0.14)) {
+        const tp = pickupTypes[Math.floor(Math.random() * pickupTypes.length)];
+        state.pickups.push({ x: e.x, y: e.y, r: 11, ...tp, ttl: 14 });
+      }
       return false;
     }
     return true;
@@ -473,6 +555,28 @@ function update(dt) {
       return false;
     }
     return true;
+  });
+
+  state.pickups = state.pickups.filter((p) => {
+    p.ttl -= dt;
+    if (Math.hypot(player.x - p.x, player.y - p.y) < player.r + p.r + 4) {
+      if (p.id === "heal") player.hp = Math.min(player.hpMax, player.hp + player.hpMax * 0.22 * player.healMul);
+      if (p.id === "bomb") {
+        for (const e of state.enemies) e.hp -= 260;
+        state.enemyBullets = [];
+        state.shake = 0.2;
+      }
+      if (p.id === "haste") player.fireRate *= 1.12;
+      if (p.id === "magnet") {
+        for (const g of state.gems) {
+          g.x += (player.x - g.x) * 0.75;
+          g.y += (player.y - g.y) * 0.75;
+        }
+      }
+      state.banners.push({ title: `获得道具：${p.label}`, sub: "来自狂潮式战斗掉落", t: 1.6 });
+      return false;
+    }
+    return p.ttl > 0;
   });
 
   while (player.xp >= player.xpNeed) {
@@ -497,16 +601,16 @@ function update(dt) {
 function drawGrid() {
   ctx.globalAlpha = 0.18;
   ctx.strokeStyle = "#27406e";
-  for (let x = 0; x < canvas.width; x += 40) {
+  for (let x = 0; x < state.world.w; x += 40) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    ctx.lineTo(x, canvas.height);
+    ctx.lineTo(x, state.world.h);
     ctx.stroke();
   }
-  for (let y = 0; y < canvas.height; y += 40) {
+  for (let y = 0; y < state.world.h; y += 40) {
     ctx.beginPath();
     ctx.moveTo(0, y);
-    ctx.lineTo(canvas.width, y);
+    ctx.lineTo(state.world.w, y);
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
@@ -514,17 +618,54 @@ function drawGrid() {
 
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const camX = state.camera.x - canvas.width / 2;
+  const camY = state.camera.y - canvas.height / 2;
   if (state.shake > 0) {
     ctx.save();
     ctx.translate(rand(-9, 9) * state.shake, rand(-9, 9) * state.shake);
   }
+  ctx.save();
+  ctx.translate(-camX, -camY);
   drawGrid();
+
+  if (state.activeEvent === "fog") {
+    const cx = state.world.w / 2;
+    const cy = state.world.h / 2;
+    ctx.fillStyle = "#4bd1a122";
+    ctx.beginPath();
+    ctx.arc(cx, cy, state.arenaRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#4bd1a1";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, state.arenaRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  for (const t of state.terrains) {
+    ctx.fillStyle = "#2f3d62";
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#45598f";
+    ctx.stroke();
+  }
 
   for (const g of state.gems) {
     ctx.fillStyle = "#67e8ff";
     ctx.beginPath();
     ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  for (const p of state.pickups) {
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#0b1020";
+    ctx.font = "12px Segoe UI";
+    ctx.fillText("道具", p.x - 12, p.y + 4);
   }
 
   for (const b of state.bullets) {
@@ -585,12 +726,61 @@ function render() {
 
   if (state.gameOver) {
     ctx.fillStyle = "#0009";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(camX, camY, canvas.width, canvas.height);
     ctx.fillStyle = "#fff";
     ctx.font = "bold 56px Segoe UI";
-    ctx.fillText("任务失败", canvas.width / 2 - 140, canvas.height / 2 - 20);
+    ctx.fillText("任务失败", state.camera.x - 140, state.camera.y - 20);
     ctx.font = "26px Segoe UI";
-    ctx.fillText("按 F5 重新开始", canvas.width / 2 - 95, canvas.height / 2 + 35);
+    ctx.fillText("按 F5 重新开始", state.camera.x - 95, state.camera.y + 35);
+  }
+  ctx.restore();
+
+  const mmW = 210;
+  const mmH = 130;
+  const mmX = canvas.width - mmW - 20;
+  const mmY = 20;
+  ctx.fillStyle = "#0009";
+  ctx.fillRect(mmX, mmY, mmW, mmH);
+  ctx.strokeStyle = "#67e8ff";
+  ctx.strokeRect(mmX, mmY, mmW, mmH);
+  const sx = mmW / state.world.w;
+  const sy = mmH / state.world.h;
+  ctx.fillStyle = "#7f8db9";
+  for (const t of state.terrains) ctx.fillRect(mmX + t.x * sx - 1, mmY + t.y * sy - 1, 2, 2);
+  ctx.fillStyle = "#ff6b8c";
+  for (let i = 0; i < Math.min(120, state.enemies.length); i++) {
+    const e = state.enemies[i];
+    ctx.fillRect(mmX + e.x * sx - 1, mmY + e.y * sy - 1, 2, 2);
+  }
+  ctx.fillStyle = "#61dafb";
+  ctx.beginPath();
+  ctx.arc(mmX + player.x * sx, mmY + player.y * sy, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#b2ecff";
+  ctx.strokeRect(mmX + camX * sx, mmY + camY * sy, canvas.width * sx, canvas.height * sy);
+  if (state.bossIntro > 0) {
+    ctx.globalAlpha = Math.min(0.85, state.bossIntro / 1.8);
+    ctx.fillStyle = "#000b";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#ffcc55";
+    ctx.font = "bold 82px Segoe UI";
+    ctx.fillText("BOSS ARRIVAL", canvas.width / 2 - 260, canvas.height / 2 - 10);
+    ctx.font = "28px Segoe UI";
+    ctx.fillText("请准备闪避与爆发输出", canvas.width / 2 - 135, canvas.height / 2 + 34);
+    ctx.globalAlpha = 1;
+  }
+  if (state.banners[0]) {
+    const b = state.banners[0];
+    ctx.fillStyle = "#0008";
+    ctx.fillRect(canvas.width / 2 - 260, 28, 520, 84);
+    ctx.strokeStyle = "#67e8ff";
+    ctx.strokeRect(canvas.width / 2 - 260, 28, 520, 84);
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 30px Segoe UI";
+    ctx.fillText(b.title, canvas.width / 2 - 238, 65);
+    ctx.font = "20px Segoe UI";
+    ctx.fillStyle = "#9fe6ff";
+    ctx.fillText(b.sub, canvas.width / 2 - 238, 94);
   }
   if (state.shake > 0) ctx.restore();
 }
@@ -604,6 +794,7 @@ function updateUI() {
   ui.dash.textContent = `${Math.max(0, player.dashCd).toFixed(1)}s`;
   ui.overdrive.textContent = `${Math.floor(player.overdrive)}%`;
   if (state.combo > 1) ui.score.textContent = `${Math.floor(state.score)}  x${state.combo}`;
+  if (state.activeEvent) ui.event.textContent = `${ui.event.textContent.split(" (")[0]} (${Math.ceil(state.eventDuration)}s)`;
   if (player.shieldMax > 0) {
     ui.hpFill.style.background = "linear-gradient(90deg, #8b9dff, #d0d8ff)";
   }
@@ -612,6 +803,9 @@ function updateUI() {
 }
 
 let last = performance.now();
+state.arenaRadius = Math.min(state.world.w, state.world.h) * 0.30;
+createTerrain();
+state.banners.push({ title: "终极融合：孤胆远征", sub: "狂潮模式已激活", t: 2.4 });
 function loop(now) {
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
