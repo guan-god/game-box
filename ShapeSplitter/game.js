@@ -277,27 +277,27 @@ function cross(o, a, b) {
 const shapeLibrary = {
     easy: [
         // 简单不规则形状
-        { generate: () => generateIrregularShape(300, 200, 150, 3, 12), name: '石头', color: '#9e9e9e' },
-        { generate: () => generateConvexHullShape(300, 200, 120, 6), name: '云朵', color: '#e0e0e0' },
-        { generate: () => smoothShape(generateIrregularShape(300, 200, 100, 2, 10)), name: '水滴', color: '#2196f3' },
-        { generate: () => generateBooleanUnionShape(300, 200, 120, 3), name: '叶子', color: '#4caf50' },
-        { generate: () => smoothShape(generateConvexHullShape(300, 200, 130, 7)), name: '贝壳', color: '#ffc107' }
+        { generate: () => generateIrregularShape(300, 200, 150, 5, 18), name: '石头', color: '#9e9e9e' },
+        { generate: () => smoothShape(generateIrregularShape(300, 200, 120, 4, 16), 0.25), name: '云朵', color: '#e0e0e0' },
+        { generate: () => smoothShape(generateIrregularShape(300, 200, 100, 5, 15), 0.22), name: '水滴', color: '#2196f3' },
+        { generate: () => generateBooleanUnionShape(300, 200, 125, 5), name: '叶子', color: '#4caf50' },
+        { generate: () => smoothShape(generateIrregularShape(300, 200, 130, 6, 20), 0.2), name: '贝壳', color: '#ffc107' }
     ],
     medium: [
         // 中等复杂度的不规则形状
-        { generate: () => generateBooleanUnionShape(300, 200, 140, 5), name: '树干', color: '#795548' },
-        { generate: () => smoothShape(generateIrregularShape(300, 200, 150, 6, 16)), name: '山峰', color: '#607d8b' },
-        { generate: () => generateBooleanUnionShape(300, 200, 130, 4), name: '果实', color: '#ff5722' },
-        { generate: () => smoothShape(generateConvexHullShape(300, 200, 120, 8)), name: '鱼', color: '#03a9f4' },
-        { generate: () => generateBooleanUnionShape(300, 200, 140, 6), name: '花朵', color: '#e91e63' }
+        { generate: () => generateBooleanUnionShape(300, 200, 145, 7), name: '树干', color: '#795548' },
+        { generate: () => smoothShape(generateIrregularShape(300, 200, 150, 8, 22), 0.18), name: '山峰', color: '#607d8b' },
+        { generate: () => generateBooleanUnionShape(300, 200, 135, 7), name: '果实', color: '#ff5722' },
+        { generate: () => smoothShape(generateIrregularShape(300, 200, 120, 9, 21), 0.16), name: '鱼', color: '#03a9f4' },
+        { generate: () => generateBooleanUnionShape(300, 200, 145, 8), name: '花朵', color: '#e91e63' }
     ],
     hard: [
         // 高复杂度的不规则形状
-        { generate: () => generateBooleanUnionShape(300, 200, 150, 8), name: '珊瑚', color: '#ff6b6b' },
-        { generate: () => smoothShape(generateIrregularShape(300, 200, 160, 9, 24)), name: '岛屿', color: '#8bc34a' },
-        { generate: () => generateBooleanUnionShape(300, 200, 140, 7), name: '岩石', color: '#6d4c41' },
-        { generate: () => smoothShape(generateConvexHullShape(300, 200, 130, 12)), name: '彗星', color: '#9c27b0' },
-        { generate: () => generateBooleanUnionShape(300, 200, 150, 9), name: '星云', color: '#3f51b5' }
+        { generate: () => generateBooleanUnionShape(300, 200, 155, 10), name: '珊瑚', color: '#ff6b6b' },
+        { generate: () => smoothShape(generateIrregularShape(300, 200, 160, 11, 28), 0.12), name: '岛屿', color: '#8bc34a' },
+        { generate: () => generateBooleanUnionShape(300, 200, 145, 10), name: '岩石', color: '#6d4c41' },
+        { generate: () => smoothShape(generateIrregularShape(300, 200, 130, 12, 26), 0.12), name: '彗星', color: '#9c27b0' },
+        { generate: () => generateBooleanUnionShape(300, 200, 150, 11), name: '星云', color: '#3f51b5' }
     ]
 };
 
@@ -347,10 +347,34 @@ function generateShape() {
     gameState.isDrawing = false;
     gameState.startPoint = { x: 0, y: 0 };
     gameState.endPoint = { x: 0, y: 0 };
+    gameState.shapeIrregularity = calculateIrregularity(getCuttablePolygon(gameState.currentShape));
+    applyDynamicDifficulty(gameState.shapeIrregularity);
     
     updateStatus('准备就绪');
     resetResults();
     drawShape();
+}
+
+// 根据形状不规则度动态调整难度展示与得分倍率
+function calculateIrregularity(points) {
+    if (!points || points.length < 3) return 0.2;
+    const area = polygonArea(points);
+    let perimeter = 0;
+    for (let i = 0; i < points.length; i++) {
+        const a = points[i];
+        const b = points[(i + 1) % points.length];
+        perimeter += Math.hypot(b[0] - a[0], b[1] - a[1]);
+    }
+    // 圆形最规整，值接近0；越不规则值越大
+    const compactness = (4 * Math.PI * area) / (perimeter * perimeter || 1);
+    return Math.max(0, Math.min(1, 1 - compactness));
+}
+
+function applyDynamicDifficulty(irregularity) {
+    let level = '简单';
+    if (irregularity > 0.45) level = '困难';
+    else if (irregularity > 0.28) level = '中等';
+    document.getElementById('currentDifficulty').textContent = `${level}（按不规则度）`;
 }
 
 // 重置游戏
@@ -622,6 +646,8 @@ function calculateAreas() {
     } else {
         score = Math.max(0, Math.floor(60 - (error - 10) * 2));
     }
+    const irregularityBonus = 1 + (gameState.shapeIrregularity || 0) * 0.45;
+    score = Math.round(score * irregularityBonus);
     
     // 更新最佳成绩
     if (score > gameState.bestScore) {
@@ -654,11 +680,19 @@ function getCuttablePolygon(shape) {
     if (Array.isArray(shape)) return shape;
     
     if (shape.type === 'boolean' && Array.isArray(shape.shapes)) {
-        const allPoints = [];
+        // 不再使用凸包“规整化”，改为选择面积最大的真实子轮廓
+        let best = null;
+        let bestArea = 0;
         shape.shapes.forEach(s => {
-            if (Array.isArray(s)) allPoints.push(...s);
+            if (Array.isArray(s) && s.length >= 3) {
+                const area = polygonArea(s);
+                if (area > bestArea) {
+                    bestArea = area;
+                    best = s;
+                }
+            }
         });
-        return allPoints.length >= 3 ? convexHull(allPoints) : null;
+        return best;
     }
     
     if (shape.type === 'smooth' && Array.isArray(shape.points)) {
@@ -666,7 +700,7 @@ function getCuttablePolygon(shape) {
         for (let i = 0; i < shape.points.length; i += 3) {
             sampled.push(shape.points[i]);
         }
-        return sampled.length >= 3 ? convexHull(sampled) : null;
+        return sampled.length >= 3 ? sampled : null;
     }
     
     return null;
