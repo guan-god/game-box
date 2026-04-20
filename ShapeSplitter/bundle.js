@@ -107,7 +107,7 @@
     const area1=polygonArea(polyA), area2=polygonArea(polyB), total=area1+area2;
     const diffRatio=Math.abs(area1-area2)/(total||1);
     const areaScore=Math.max(0,100-diffRatio*100);
-    return { leftPct: area1/total*100, rightPct: area2/total*100, areaScore, finalScore: Math.round(areaScore*mul) };
+    return { leftPct: area1/total*100, rightPct: area2/total*100, areaScore, finalScore: Math.min(100, Math.round(areaScore*mul)) };
   }
 
   const ui = {
@@ -116,7 +116,6 @@
     multiplier: document.getElementById('multiplier'),
     leftPct: document.getElementById('leftPct'),
     rightPct: document.getElementById('rightPct'),
-    areaScore: document.getElementById('areaScore'),
     finalScore: document.getElementById('finalScore'),
     toast: document.getElementById('toast'),
   };
@@ -125,6 +124,7 @@
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
   const nextBtn = document.getElementById('nextBtn');
+  const retryBtn = document.getElementById('retryBtn');
   const state = { shape:[], dragging:false, dragStart:[0,0], dragEnd:[0,0], cutPolys:null, anim:0, multiplier:1, best:Number(localStorage.getItem('cut_best')||0) };
   ui.bestScore.textContent = state.best;
 
@@ -161,7 +161,13 @@
     const info = analyzeShape(state.shape);
     state.multiplier = info.multiplier; state.cutPolys = null; state.dragging = false;
     ui.shapeRank.textContent = info.rank; ui.multiplier.textContent = `x${info.multiplier.toFixed(2)}`;
-    ui.leftPct.textContent = ui.rightPct.textContent = ui.areaScore.textContent = ui.finalScore.textContent = '-';
+    ui.leftPct.textContent = ui.rightPct.textContent = ui.finalScore.textContent = '-';
+  }
+  function retrySameShape(){
+    state.cutPolys = null;
+    state.dragging = false;
+    state.anim = 0;
+    ui.leftPct.textContent = ui.rightPct.textContent = ui.finalScore.textContent = '-';
   }
   canvas.addEventListener('mousedown', (e)=>{ if(state.cutPolys) return; state.dragging=true; state.dragStart=pos(e); state.dragEnd=pos(e); });
   canvas.addEventListener('mousemove', (e)=>{ if(!state.dragging) return; state.dragEnd=pos(e); });
@@ -172,11 +178,12 @@
     if(!cut.ok) return toast(cut.reason);
     state.cutPolys = cut.polys;
     const r = scoreCut(cut.polys[0], cut.polys[1], state.multiplier);
-    ui.leftPct.textContent=`${r.leftPct.toFixed(1)}%`; ui.rightPct.textContent=`${r.rightPct.toFixed(1)}%`; ui.areaScore.textContent=r.areaScore.toFixed(1); ui.finalScore.textContent=String(r.finalScore);
+    ui.leftPct.textContent=`${r.leftPct.toFixed(1)}%`; ui.rightPct.textContent=`${r.rightPct.toFixed(1)}%`; ui.finalScore.textContent=String(r.finalScore);
     ui.finalScore.animate([{transform:'scale(1)'},{transform:'scale(1.2)'},{transform:'scale(1)'}],{duration:380});
     if(r.finalScore > state.best){ state.best=r.finalScore; localStorage.setItem('cut_best', String(state.best)); ui.bestScore.textContent=String(state.best); }
   });
   nextBtn.addEventListener('click', newRound);
+  retryBtn.addEventListener('click', retrySameShape);
 
   newRound();
   render();
