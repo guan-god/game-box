@@ -50,6 +50,9 @@ const state = {
   bossIntro: 0,
   world: { w: 3200, h: 2200 },
   camera: { x: 0, y: 0 },
+  enemyBuff: 1,
+  playerBuffTimer: 0,
+  mission: null,
 };
 
 const player = {
@@ -80,6 +83,8 @@ const player = {
   shieldRegen: 0,
   overdrive: 0,
   healMul: 1,
+  dmgMul: 1,
+  hasteMul: 1,
 };
 
 const upgrades = [
@@ -156,6 +161,35 @@ const pickupTypes = [
   { id: "magnet", color: "#d0a2ff", label: "磁吸模块" },
 ];
 
+const missionPool = [
+  { id: "kill", title: "清剿令", desc: "20秒内击杀 18 只敌人", goal: 18, time: 20 },
+  { id: "elite", title: "斩首令", desc: "25秒内击杀 2 只精英/首领", goal: 2, time: 25 },
+  { id: "noHit", title: "极限闪避", desc: "12秒内不受伤", goal: 12, time: 12 },
+];
+
+function startMission() {
+  if (state.mission) return;
+  const m = { ...missionPool[Math.floor(Math.random() * missionPool.length)], progress: 0, t: 0, failed: false };
+  state.mission = m;
+  state.banners.push({ title: `任务：${m.title}`, sub: m.desc, t: 2.6 });
+}
+
+function resolveMission(success) {
+  if (!state.mission) return;
+  if (success) {
+    player.dmgMul = 1.2;
+    player.hasteMul = 1.2;
+    state.playerBuffTimer = 18;
+    state.banners.push({ title: "任务完成", sub: "你获得了临时强化（伤害+攻速）", t: 2.4 });
+  } else {
+    player.fireRate *= 0.92;
+    player.speed *= 0.95;
+    state.enemyBuff = Math.min(2.2, state.enemyBuff + 0.12);
+    state.banners.push({ title: "任务失败", sub: "你被削弱且敌人进入狂暴", t: 2.4 });
+  }
+  state.mission = null;
+}
+
 function addParticle(x, y, n = 8, color = "#7ce6ff") {
   for (let i = 0; i < n; i++) {
     state.particles.push({
@@ -212,13 +246,13 @@ function spawnEnemy(kind = "chaser") {
     shootCd: rand(0.8, 1.6),
   };
   if (kind === "chaser") {
-    state.enemies.push({ ...base, kind, r: 12, hp: (38 + state.wave * 5) * diff, speed: 90 + state.wave * 2 + player.level, dmg: 10 * diff });
+    state.enemies.push({ ...base, kind, r: 12, hp: (38 + state.wave * 5) * diff * state.enemyBuff, speed: 90 + state.wave * 2 + player.level, dmg: 10 * diff * state.enemyBuff });
   } else if (kind === "shooter") {
-    state.enemies.push({ ...base, kind, r: 13, hp: (30 + state.wave * 4) * diff, speed: 60 + state.wave + player.level * 0.7, dmg: 9 * diff });
+    state.enemies.push({ ...base, kind, r: 13, hp: (30 + state.wave * 4) * diff * state.enemyBuff, speed: 60 + state.wave + player.level * 0.7, dmg: 9 * diff * state.enemyBuff });
   } else if (kind === "tank") {
-    state.enemies.push({ ...base, kind, r: 22, hp: (160 + state.wave * 18) * diff, speed: 45 + state.wave + player.level * 0.4, dmg: 18 * diff });
+    state.enemies.push({ ...base, kind, r: 22, hp: (160 + state.wave * 18) * diff * state.enemyBuff, speed: 45 + state.wave + player.level * 0.4, dmg: 18 * diff * state.enemyBuff });
   } else if (kind === "boss") {
-    state.enemies.push({ ...base, kind, r: 46, hp: (1800 + state.wave * 250) * (1 + player.level * 0.06), speed: 70 + player.level * 0.8, dmg: 24 * diff, phase: 1 });
+    state.enemies.push({ ...base, kind, r: 46, hp: (1800 + state.wave * 250) * (1 + player.level * 0.06) * (state.enemyBuff + 0.25), speed: 70 + player.level * 0.8, dmg: 24 * diff * state.enemyBuff, phase: 1 });
     state.banners.push({ title: "⚠ BOSS 入侵", sub: "高能目标锁定中...", t: 2.8 });
     state.bossIntro = 1.8;
   }
@@ -249,7 +283,7 @@ function shootAt(target) {
       vx: Math.cos(a) * player.bulletSpeed,
       vy: Math.sin(a) * player.bulletSpeed,
       life: 1.4,
-      dmg: player.damage * (crit ? player.critMul : 1),
+      dmg: player.damage * player.dmgMul * (crit ? player.critMul : 1),
       r: player.bulletSize + (crit ? 1.5 : 0),
       pierce: player.pierce,
       crit,
@@ -259,12 +293,13 @@ function shootAt(target) {
 
 function hitPlayer(dmg) {
   if (player.iframe > 0 || player.gameOver) return;
+  if (state.mission?.id === "noHit") state.mission.failed = true;
   if (player.shield > 0) {
     const absorb = Math.min(player.shield, dmg);
     player.shield -= absorb;
     dmg -= absorb;
   }
-  if (dmg > 0) player.hp -= dmg;
+  if (dmg > 0) player.hp -= dmg * state.enemyBuff;
   player.iframe = 0.4;
   state.flashes.push({ t: 0.1, c: "#ff5b7f" });
   if (player.hp <= 0) {
@@ -319,14 +354,13 @@ document.addEventListener("keydown", (e) => {
   if (["1", "2", "3"].includes(e.key)) chooseUpgrade(Number(e.key) - 1);
   if (e.key.toLowerCase() === "q" && player.overdrive >= 100 && !state.paused && !state.gameOver) {
     player.overdrive = 0;
-    state.shake = 0.35;
-    state.enemyBullets = [];
+    state.shake = 0.2;
     for (const e of state.enemies) {
       const d = Math.hypot(e.x - player.x, e.y - player.y);
-      e.hp -= Math.max(180, 420 - d * 0.45);
+      e.hp -= Math.max(80, 240 - d * 0.28);
       e.hitFlash = 0.2;
     }
-    addParticle(player.x, player.y, 120, "#ffe37a");
+    addParticle(player.x, player.y, 70, "#ffe37a");
   }
 });
 
@@ -336,6 +370,11 @@ function update(dt) {
   state.shake = Math.max(0, state.shake - dt);
   state.bossIntro = Math.max(0, state.bossIntro - dt);
   state.banners = state.banners.filter((b) => (b.t -= dt) > 0);
+  state.playerBuffTimer = Math.max(0, state.playerBuffTimer - dt);
+  if (state.playerBuffTimer <= 0) {
+    player.dmgMul = 1;
+    player.hasteMul = 1;
+  }
   state.comboTimer = Math.max(0, state.comboTimer - dt);
   if (state.comboTimer <= 0) state.combo = 0;
   if (state.paused) return;
@@ -412,6 +451,14 @@ function update(dt) {
     state.waveTimer = 0;
     createTerrain();
     state.banners.push({ title: `第 ${state.wave} 波`, sub: "地形已重构，注意走位", t: 1.8 });
+    startMission();
+  }
+
+  if (state.mission) {
+    state.mission.t += dt;
+    if (state.mission.id === "noHit") state.mission.progress += dt;
+    if (state.mission.progress >= state.mission.goal) resolveMission(true);
+    else if (state.mission.t >= state.mission.time || state.mission.failed) resolveMission(false);
   }
 
   let nearest = null;
@@ -426,7 +473,7 @@ function update(dt) {
   if (player.shootCd <= 0 && nearest) {
     const jam = state.activeEvent === "jam" ? 1.45 : 1;
     const comboBoost = 1 + Math.min(0.5, state.combo * 0.03);
-    player.shootCd = jam / (player.fireRate * comboBoost);
+    player.shootCd = jam / (player.fireRate * comboBoost * player.hasteMul);
     shootAt(nearest);
   }
 
@@ -506,17 +553,20 @@ function update(dt) {
     } else if (e.kind === "boss") {
       if (e.hp < 900 && e.phase === 1) {
         e.phase = 2;
-        e.speed = 105;
+        e.speed = 130;
+        state.banners.push({ title: "BOSS 二阶段", sub: "追加召唤与高密弹幕", t: 2 });
       }
       e.x += (dx / d) * e.speed * bloodMoonSpeed * dt;
       e.y += (dy / d) * e.speed * bloodMoonSpeed * dt;
       e.shootCd -= dt;
       if (e.shootCd <= 0) {
-        e.shootCd = e.phase === 1 ? 1.1 : 0.65;
-        for (let i = 0; i < (e.phase === 1 ? 8 : 14); i++) {
-          const a = (Math.PI * 2 * i) / (e.phase === 1 ? 8 : 14) + state.t * 0.2;
-          state.enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 230, vy: Math.sin(a) * 230, r: 8, life: 5, dmg: 10 * bloodMoonDmg });
+        e.shootCd = e.phase === 1 ? 0.95 : 0.5;
+        const ring = e.phase === 1 ? 10 : 18;
+        for (let i = 0; i < ring; i++) {
+          const a = (Math.PI * 2 * i) / ring + state.t * 0.25;
+          state.enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 250, vy: Math.sin(a) * 250, r: 8, life: 5, dmg: 11 * bloodMoonDmg * state.enemyBuff });
         }
+        if (e.phase === 2 && Math.random() < 0.45) spawnEnemy(Math.random() < 0.5 ? "shooter" : "chaser");
       }
     } else {
       e.x += (dx / d) * e.speed * bloodMoonSpeed * dt;
@@ -533,6 +583,8 @@ function update(dt) {
       state.score += (e.kind === "boss" ? 1000 : e.kind === "tank" ? 120 : 60) * (1 + state.combo * 0.08);
       player.overdrive = Math.min(100, player.overdrive + (e.kind === "boss" ? 55 : e.elite ? 15 : 7));
       state.gems.push({ x: e.x, y: e.y, v: e.kind === "boss" ? 150 : e.kind === "tank" ? 36 : 18, r: e.kind === "boss" ? 9 : 6 });
+      if (state.mission?.id === "kill") state.mission.progress++;
+      if (state.mission?.id === "elite" && (e.elite || e.kind === "boss")) state.mission.progress++;
       if (Math.random() < (e.kind === "boss" ? 1 : 0.14)) {
         const tp = pickupTypes[Math.floor(Math.random() * pickupTypes.length)];
         state.pickups.push({ x: e.x, y: e.y, r: 11, ...tp, ttl: 14 });
@@ -795,6 +847,10 @@ function updateUI() {
   ui.overdrive.textContent = `${Math.floor(player.overdrive)}%`;
   if (state.combo > 1) ui.score.textContent = `${Math.floor(state.score)}  x${state.combo}`;
   if (state.activeEvent) ui.event.textContent = `${ui.event.textContent.split(" (")[0]} (${Math.ceil(state.eventDuration)}s)`;
+  if (state.mission) {
+    const p = state.mission.id === "noHit" ? state.mission.progress.toFixed(1) : Math.floor(state.mission.progress);
+    ui.eventDesc.textContent = `任务[${state.mission.title}] ${p}/${state.mission.goal} | 剩余 ${Math.max(0, state.mission.time - state.mission.t).toFixed(1)}s`;
+  }
   if (player.shieldMax > 0) {
     ui.hpFill.style.background = "linear-gradient(90deg, #8b9dff, #d0d8ff)";
   }
@@ -806,6 +862,7 @@ let last = performance.now();
 state.arenaRadius = Math.min(state.world.w, state.world.h) * 0.30;
 createTerrain();
 state.banners.push({ title: "终极融合：孤胆远征", sub: "狂潮模式已激活", t: 2.4 });
+startMission();
 function loop(now) {
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
