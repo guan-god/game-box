@@ -9,6 +9,7 @@ const ui = {
   xpFill: document.getElementById("xpFill"),
   lvl: document.getElementById("lvl"),
   dash: document.getElementById("dash"),
+  overdrive: document.getElementById("overdrive"),
   event: document.getElementById("event"),
   upgradePanel: document.getElementById("upgradePanel"),
   upgradeList: document.getElementById("upgradeList"),
@@ -38,6 +39,9 @@ const state = {
   eventTimer: 0,
   activeEvent: null,
   eventDuration: 0,
+  combo: 0,
+  comboTimer: 0,
+  shake: 0,
 };
 
 const player = {
@@ -66,6 +70,7 @@ const player = {
   shield: 0,
   shieldMax: 0,
   shieldRegen: 0,
+  overdrive: 0,
 };
 
 const upgrades = [
@@ -155,6 +160,7 @@ function spawnEnemy(kind = "chaser") {
   if (side === 2) [x, y] = [rand(0, canvas.width), canvas.height + 20];
   if (side === 3) [x, y] = [-20, rand(0, canvas.height)];
 
+  const diff = 1 + state.wave * 0.08 + player.level * 0.05 + state.t * 0.004;
   const base = {
     x,
     y,
@@ -162,13 +168,21 @@ function spawnEnemy(kind = "chaser") {
     shootCd: rand(0.8, 1.6),
   };
   if (kind === "chaser") {
-    state.enemies.push({ ...base, kind, r: 12, hp: 38 + state.wave * 5, speed: 90 + state.wave * 2, dmg: 10 });
+    state.enemies.push({ ...base, kind, r: 12, hp: (38 + state.wave * 5) * diff, speed: 90 + state.wave * 2 + player.level, dmg: 10 * diff });
   } else if (kind === "shooter") {
-    state.enemies.push({ ...base, kind, r: 13, hp: 30 + state.wave * 4, speed: 60 + state.wave, dmg: 9 });
+    state.enemies.push({ ...base, kind, r: 13, hp: (30 + state.wave * 4) * diff, speed: 60 + state.wave + player.level * 0.7, dmg: 9 * diff });
   } else if (kind === "tank") {
-    state.enemies.push({ ...base, kind, r: 22, hp: 160 + state.wave * 18, speed: 45 + state.wave, dmg: 18 });
+    state.enemies.push({ ...base, kind, r: 22, hp: (160 + state.wave * 18) * diff, speed: 45 + state.wave + player.level * 0.4, dmg: 18 * diff });
   } else if (kind === "boss") {
-    state.enemies.push({ ...base, kind, r: 46, hp: 1800 + state.wave * 250, speed: 70, dmg: 24, phase: 1 });
+    state.enemies.push({ ...base, kind, r: 46, hp: (1800 + state.wave * 250) * (1 + player.level * 0.06), speed: 70 + player.level * 0.8, dmg: 24 * diff, phase: 1 });
+  }
+  const latest = state.enemies[state.enemies.length - 1];
+  if (latest && latest.kind !== "boss" && state.wave >= 4 && Math.random() < 0.18) {
+    latest.elite = true;
+    latest.r *= 1.2;
+    latest.hp *= 1.9;
+    latest.speed *= 1.2;
+    latest.dmg *= 1.35;
   }
 }
 
@@ -249,11 +263,25 @@ function chooseUpgrade(i, pool = state.currentUpgradePool) {
 
 document.addEventListener("keydown", (e) => {
   if (["1", "2", "3"].includes(e.key)) chooseUpgrade(Number(e.key) - 1);
+  if (e.key.toLowerCase() === "q" && player.overdrive >= 100 && !state.paused && !state.gameOver) {
+    player.overdrive = 0;
+    state.shake = 0.35;
+    state.enemyBullets = [];
+    for (const e of state.enemies) {
+      const d = Math.hypot(e.x - player.x, e.y - player.y);
+      e.hp -= Math.max(180, 420 - d * 0.45);
+      e.hitFlash = 0.2;
+    }
+    addParticle(player.x, player.y, 120, "#ffe37a");
+  }
 });
 
 function update(dt) {
   if (state.gameOver) return;
   state.t += dt;
+  state.shake = Math.max(0, state.shake - dt);
+  state.comboTimer = Math.max(0, state.comboTimer - dt);
+  if (state.comboTimer <= 0) state.combo = 0;
   if (state.paused) return;
 
   player.iframe = Math.max(0, player.iframe - dt);
@@ -282,7 +310,7 @@ function update(dt) {
   player.y = clamp(player.y, 10, canvas.height - 10);
 
   state.waveTimer += dt;
-  let spawnRate = Math.max(0.1, 0.85 - state.wave * 0.03 - player.level * 0.01);
+  let spawnRate = Math.max(0.08, 0.8 - state.wave * 0.04 - player.level * 0.015);
   if (state.activeEvent === "swarm") spawnRate *= 0.5;
   if (Math.random() < dt / spawnRate) {
     const r = Math.random();
@@ -328,7 +356,8 @@ function update(dt) {
   }
   if (player.shootCd <= 0 && nearest) {
     const jam = state.activeEvent === "jam" ? 1.45 : 1;
-    player.shootCd = jam / player.fireRate;
+    const comboBoost = 1 + Math.min(0.5, state.combo * 0.03);
+    player.shootCd = jam / (player.fireRate * comboBoost);
     shootAt(nearest);
   }
 
@@ -421,7 +450,10 @@ function update(dt) {
 
     if (e.hp <= 0) {
       addParticle(e.x, e.y, e.kind === "boss" ? 45 : 14, e.kind === "boss" ? "#ffde59" : "#90f7ff");
-      state.score += e.kind === "boss" ? 1000 : e.kind === "tank" ? 120 : 60;
+      state.combo = Math.min(25, state.combo + 1);
+      state.comboTimer = 3.5;
+      state.score += (e.kind === "boss" ? 1000 : e.kind === "tank" ? 120 : 60) * (1 + state.combo * 0.08);
+      player.overdrive = Math.min(100, player.overdrive + (e.kind === "boss" ? 55 : e.elite ? 15 : 7));
       state.gems.push({ x: e.x, y: e.y, v: e.kind === "boss" ? 150 : e.kind === "tank" ? 36 : 18, r: e.kind === "boss" ? 9 : 6 });
       return false;
     }
@@ -482,6 +514,10 @@ function drawGrid() {
 
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (state.shake > 0) {
+    ctx.save();
+    ctx.translate(rand(-9, 9) * state.shake, rand(-9, 9) * state.shake);
+  }
   drawGrid();
 
   for (const g of state.gems) {
@@ -515,7 +551,7 @@ function render() {
   }
 
   for (const e of state.enemies) {
-    ctx.fillStyle = e.hitFlash > 0 ? "#fff" : e.kind === "boss" ? "#ffcf66" : e.kind === "tank" ? "#e2698f" : e.kind === "shooter" ? "#b185ff" : "#ff7398";
+    ctx.fillStyle = e.hitFlash > 0 ? "#fff" : e.elite ? "#ff3d3d" : e.kind === "boss" ? "#ffcf66" : e.kind === "tank" ? "#e2698f" : e.kind === "shooter" ? "#b185ff" : "#ff7398";
     ctx.beginPath();
     ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
     ctx.fill();
@@ -556,6 +592,7 @@ function render() {
     ctx.font = "26px Segoe UI";
     ctx.fillText("按 F5 重新开始", canvas.width / 2 - 95, canvas.height / 2 + 35);
   }
+  if (state.shake > 0) ctx.restore();
 }
 
 function updateUI() {
@@ -565,6 +602,8 @@ function updateUI() {
   ui.hpFill.style.width = `${(player.hp / player.hpMax) * 100}%`;
   ui.xpFill.style.width = `${(player.xp / player.xpNeed) * 100}%`;
   ui.dash.textContent = `${Math.max(0, player.dashCd).toFixed(1)}s`;
+  ui.overdrive.textContent = `${Math.floor(player.overdrive)}%`;
+  if (state.combo > 1) ui.score.textContent = `${Math.floor(state.score)}  x${state.combo}`;
   if (player.shieldMax > 0) {
     ui.hpFill.style.background = "linear-gradient(90deg, #8b9dff, #d0d8ff)";
   }
