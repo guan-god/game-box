@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>材质模式俄罗斯方块</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="bg"></div>
+  <main class="app">
+    <section id="titleScreen" class="screen active center">
+      <h1>材质机制俄罗斯方块</h1>
+      <p>每种材质 = 不同规则，不只是皮肤。</p>
+      <button id="enterSelectBtn" class="btn primary">开始选择材质</button>
+    </section>
+
+    <section id="selectScreen" class="screen">
+      <header class="row between">
+        <h2>选择本局材质模式</h2>
+        <button id="backTitleBtn" class="btn">返回标题</button>
+      </header>
+      <div id="modeCards" class="cards"></div>
+    </section>
+
+    <section id="gameScreen" class="screen">
+      <div class="layout">
+        <section class="panel board-panel">
+          <div id="board" class="board"></div>
+          <div id="fx" class="fx"></div>
+        </section>
+        <aside class="panel side-panel">
+          <h3 id="modeName">-</h3>
+          <div class="stats">
+            <div>分数：<b id="score">0</b></div>
+            <div>等级：<b id="level">1</b></div>
+            <div>行数：<b id="lines">0</b></div>
+          </div>
+          <div class="next">
+            <div class="label">下一个方块</div>
+            <div id="nextBoard" class="next-board"></div>
+          </div>
+          <div class="status">
+            <div class="label">特殊状态</div>
+            <p id="specialStatus">-</p>
+            <div id="energyWrap" class="energy-wrap hidden">
+              <div class="energy-bar"><i id="energyBar"></i></div>
+              <small>霓虹能量</small>
+            </div>
+          </div>
+          <div class="buttons">
+            <button id="pauseBtn" class="btn">暂停(P)</button>
+            <button id="restartBtn" class="btn">重开(R)</button>
+            <button id="backSelectBtn" class="btn danger">返回材质选择</button>
+          </div>
+          <div class="keys">
+            ← → 移动 / ↑ 旋转 / ↓ 加速 / 空格硬降
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="resultScreen" class="screen center">
+      <h2>游戏结束</h2>
+      <p id="resultText">本局得分 0</p>
+      <div class="row gap">
+        <button id="playAgainBtn" class="btn primary">同材质再来一局</button>
+        <button id="toSelectBtn" class="btn">返回材质选择</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="./script.js"></script>
+</body>
+</html>
