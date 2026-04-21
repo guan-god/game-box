@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Rift: Lone Survivor</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="bg"></div>
+  <main class="shell">
+    <section id="menuScreen" class="screen active">
+      <h1>NEON RIFT</h1>
+      <p class="subtitle">霓虹裂隙 · 单人肉鸽割草生存</p>
+      <div class="menu-buttons">
+        <button id="startBtn" class="btn primary">开始游戏</button>
+        <button id="unlockBtn" class="btn">图鉴 / 解锁</button>
+        <button id="settingsBtn" class="btn">设置</button>
+      </div>
+      <div class="panel">
+        <h3>角色选择</h3>
+        <div id="charList" class="cards"></div>
+      </div>
+      <div id="mapMods" class="tag-row"></div>
+    </section>
+
+    <section id="gameScreen" class="screen">
+      <canvas id="gameCanvas" width="1280" height="720"></canvas>
+      <div class="hud top-left">
+        <div>角色：<b id="hudChar">-</b></div>
+        <div>HP：<b id="hudHp">0</b></div>
+        <div>等级：<b id="hudLv">1</b></div>
+        <div>击杀：<b id="hudKills">0</b></div>
+      </div>
+      <div class="hud top-right">
+        <div>时间：<b id="hudTime">00:00</b></div>
+        <div>地图词缀：<b id="hudMod">-</b></div>
+        <div>事件：<b id="hudEvent">-</b></div>
+      </div>
+      <div class="hud bottom-left">
+        <div class="bar"><span id="hpBar"></span></div>
+        <div class="bar xp"><span id="xpBar"></span></div>
+      </div>
+      <div class="hud bottom-right list">
+        <h4>武器</h4>
+        <ul id="weaponList"></ul>
+        <h4>被动</h4>
+        <ul id="passiveList"></ul>
+      </div>
+      <button id="pauseBtn" class="btn mini pause">暂停(P)</button>
+    </section>
+
+    <section id="upgradeScreen" class="screen overlay">
+      <div class="panel large">
+        <h2>升级！三选一</h2>
+        <div id="upgradeChoices" class="cards three"></div>
+      </div>
+    </section>
+
+    <section id="resultScreen" class="screen overlay">
+      <div class="panel large">
+        <h2 id="resultTitle">结算</h2>
+        <p id="resultStats"></p>
+        <p id="resultBuild"></p>
+        <div class="row">
+          <button id="againBtn" class="btn primary">再来一局</button>
+          <button id="menuBtn" class="btn">返回主界面</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="unlockScreen" class="screen overlay">
+      <div class="panel large">
+        <h2>图鉴 / 解锁</h2>
+        <p id="metaInfo"></p>
+        <div id="unlockContent" class="cards"></div>
+        <button id="closeUnlockBtn" class="btn">关闭</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="./script.js"></script>
+</body>
+</html>

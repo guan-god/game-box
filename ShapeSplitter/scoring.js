@@ -47,13 +47,13 @@ export function analyzeShape(points) {
   return { irregular, rank, multiplier: CONFIG.multipliers[rank] };
 }
 
-export function scoreCut(polyA, polyB, multiplier) {
+export function scoreCut(polyA, polyB) {
   const area1 = polygonArea(polyA);
   const area2 = polygonArea(polyB);
   const totalArea = area1 + area2;
   const diffRatio = Math.abs(area1 - area2) / (totalArea || 1);
   const areaScore = Math.max(0, 100 - diffRatio * 100);
-  const finalScore = Math.round(areaScore * multiplier);
+  const finalScore = Math.round(areaScore);
   return {
     area1, area2,
     leftPct: (area1 / totalArea) * 100,
