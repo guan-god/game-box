@@ -103,11 +103,11 @@
     let rank = 'D'; if (irregular >= 78) rank='S'; else if (irregular >= 62) rank='A'; else if (irregular >=46) rank='B'; else if (irregular>=30) rank='C';
     return { irregular, rank, multiplier: CONFIG.multipliers[rank] };
   }
-  function scoreCut(polyA, polyB, mul) {
+  function scoreCut(polyA, polyB) {
     const area1=polygonArea(polyA), area2=polygonArea(polyB), total=area1+area2;
     const diffRatio=Math.abs(area1-area2)/(total||1);
     const areaScore=Math.max(0,100-diffRatio*100);
-    return { leftPct: area1/total*100, rightPct: area2/total*100, areaScore, finalScore: Math.min(100, Math.round(areaScore*mul)) };
+    return { leftPct: area1/total*100, rightPct: area2/total*100, areaScore, finalScore: Math.round(areaScore) };
   }
 
   const ui = {
@@ -177,7 +177,7 @@
     const cut = cutPolygon(state.shape, state.dragStart, state.dragEnd);
     if(!cut.ok) return toast(cut.reason);
     state.cutPolys = cut.polys;
-    const r = scoreCut(cut.polys[0], cut.polys[1], state.multiplier);
+    const r = scoreCut(cut.polys[0], cut.polys[1]);
     ui.leftPct.textContent=`${r.leftPct.toFixed(1)}%`; ui.rightPct.textContent=`${r.rightPct.toFixed(1)}%`; ui.finalScore.textContent=String(r.finalScore);
     ui.finalScore.animate([{transform:'scale(1)'},{transform:'scale(1.2)'},{transform:'scale(1)'}],{duration:380});
     if(r.finalScore > state.best){ state.best=r.finalScore; localStorage.setItem('cut_best', String(state.best)); ui.bestScore.textContent=String(state.best); }
