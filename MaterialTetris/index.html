@@ -3,65 +3,72 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>材质方块 · Material Tetris</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <title>材质模式俄罗斯方块</title>
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <div class="bg-orb orb-a"></div>
-  <div class="bg-orb orb-b"></div>
-  <div class="bg-grid"></div>
-
+  <div class="bg"></div>
   <main class="app">
-    <section class="panel game-panel">
-      <header class="panel-header">
-        <h1>材质方块</h1>
-        <p>Material Tetris</p>
-      </header>
-      <div id="board" class="board" aria-label="游戏区域"></div>
-      <div id="fxLayer" class="fx-layer" aria-hidden="true"></div>
+    <section id="titleScreen" class="screen active center">
+      <h1>材质机制俄罗斯方块</h1>
+      <p>每种材质 = 不同规则，不只是皮肤。</p>
+      <button id="enterSelectBtn" class="btn primary">开始选择材质</button>
     </section>
 
-    <aside class="panel side-panel">
-      <div class="stats">
-        <div class="stat-card"><span>分数</span><b id="score">0</b></div>
-        <div class="stat-card"><span>等级</span><b id="level">1</b></div>
-        <div class="stat-card"><span>行数</span><b id="lines">0</b></div>
-      </div>
+    <section id="selectScreen" class="screen">
+      <header class="row between">
+        <h2>选择本局材质模式</h2>
+        <button id="backTitleBtn" class="btn">返回标题</button>
+      </header>
+      <div id="modeCards" class="cards"></div>
+    </section>
 
-      <div class="next-wrap">
-        <div class="label">下一个方块</div>
-        <div id="nextBoard" class="next-board"></div>
+    <section id="gameScreen" class="screen">
+      <div class="layout">
+        <section class="panel board-panel">
+          <div id="board" class="board"></div>
+          <div id="fx" class="fx"></div>
+        </section>
+        <aside class="panel side-panel">
+          <h3 id="modeName">-</h3>
+          <div class="stats">
+            <div>分数：<b id="score">0</b></div>
+            <div>等级：<b id="level">1</b></div>
+            <div>行数：<b id="lines">0</b></div>
+          </div>
+          <div class="next">
+            <div class="label">下一个方块</div>
+            <div id="nextBoard" class="next-board"></div>
+          </div>
+          <div class="status">
+            <div class="label">特殊状态</div>
+            <p id="specialStatus">-</p>
+            <div id="energyWrap" class="energy-wrap hidden">
+              <div class="energy-bar"><i id="energyBar"></i></div>
+              <small>霓虹能量</small>
+            </div>
+          </div>
+          <div class="buttons">
+            <button id="pauseBtn" class="btn">暂停(P)</button>
+            <button id="restartBtn" class="btn">重开(R)</button>
+            <button id="backSelectBtn" class="btn danger">返回材质选择</button>
+          </div>
+          <div class="keys">
+            ← → 移动 / ↑ 旋转 / ↓ 加速 / 空格硬降
+          </div>
+        </aside>
       </div>
+    </section>
 
-      <div class="theme-tip">
-        <div class="label">当前材质主题</div>
-        <div id="themeName" class="theme-name">-</div>
-        <div id="themeHint" class="theme-hint">-</div>
+    <section id="resultScreen" class="screen center">
+      <h2>游戏结束</h2>
+      <p id="resultText">本局得分 0</p>
+      <div class="row gap">
+        <button id="playAgainBtn" class="btn primary">同材质再来一局</button>
+        <button id="toSelectBtn" class="btn">返回材质选择</button>
       </div>
-
-      <div class="controls">
-        <button id="startBtn" class="btn btn-primary">开始</button>
-        <button id="pauseBtn" class="btn">暂停</button>
-        <button id="restartBtn" class="btn btn-danger">重新开始</button>
-      </div>
-
-      <div class="keymap">
-        <h3>键位</h3>
-        <p>← / → 左右移动</p>
-        <p>↑ 旋转 ↓ 加速下落</p>
-        <p>Space 直落 P 暂停</p>
-      </div>
-    </aside>
+    </section>
   </main>
-
-  <nav class="touch-controls" aria-label="触屏控制">
-    <button data-action="left">◀</button>
-    <button data-action="rotate">⟳</button>
-    <button data-action="right">▶</button>
-    <button data-action="down">▼</button>
-    <button data-action="drop">⤓</button>
-    <button data-action="pause">Ⅱ</button>
-  </nav>
 
   <div id="toast" class="toast"></div>
   <script src="./script.js"></script>
