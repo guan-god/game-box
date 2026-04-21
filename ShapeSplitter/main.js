@@ -16,8 +16,9 @@ const state = {
   dragStart: [0, 0],
   dragEnd: [0, 0],
   cutPolys: null,
-  best: Number(localStorage.getItem('cut_best') || 0),
+  best: 0,
 };
+localStorage.setItem('cut_best', '0');
 ui.setBest(state.best);
 
 function newRound() {
@@ -53,7 +54,7 @@ canvas.addEventListener('mouseup', (e) => {
   const cut = cutPolygon(state.shape, state.dragStart, state.dragEnd);
   if (!cut.ok) return ui.toast(cut.reason);
   state.cutPolys = cut.polys;
-  const result = scoreCut(cut.polys[0], cut.polys[1], state.multiplier);
+  const result = scoreCut(cut.polys[0], cut.polys[1]);
   ui.setResult(result);
   if (result.finalScore > state.best) {
     state.best = result.finalScore;
