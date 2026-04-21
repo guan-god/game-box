@@ -21,6 +21,13 @@
         <h3>角色选择</h3>
         <div id="charList" class="cards"></div>
       </div>
+      <div class="panel">
+        <h3>开局说明</h3>
+        <p>1) WASD/方向键移动，空格冲刺，P暂停，R重开。</p>
+        <p>2) 自动攻击清怪，吃经验升级后进行三选一构筑。</p>
+        <p>3) 注意地图地形与任务目标，完成任务会给额外奖励。</p>
+        <p>4) 每3分钟出现Boss，存活12分钟即可胜利。</p>
+      </div>
       <div id="mapMods" class="tag-row"></div>
     </section>
 
@@ -36,6 +43,7 @@
         <div>时间：<b id="hudTime">00:00</b></div>
         <div>地图词缀：<b id="hudMod">-</b></div>
         <div>事件：<b id="hudEvent">-</b></div>
+        <div>任务：<b id="hudMission">-</b></div>
       </div>
       <div class="hud bottom-left">
         <div class="bar"><span id="hpBar"></span></div>
@@ -75,6 +83,16 @@
         <p id="metaInfo"></p>
         <div id="unlockContent" class="cards"></div>
         <button id="closeUnlockBtn" class="btn">关闭</button>
+      </div>
+    </section>
+
+    <section id="settingsScreen" class="screen overlay">
+      <div class="panel large">
+        <h2>设置</h2>
+        <label class="setting"><input type="checkbox" id="setShake" checked /> 屏幕震动</label>
+        <label class="setting"><input type="checkbox" id="setDamageNum" checked /> 伤害数字</label>
+        <label class="setting"><input type="checkbox" id="setLiteFx" /> 低特效模式</label>
+        <button id="closeSettingsBtn" class="btn">关闭</button>
       </div>
     </section>
   </main>

@@ -59,6 +59,7 @@
     constructor() {
       this.boardEl = document.getElementById('board');
       this.nextEl = document.getElementById('nextBoard');
+      this.holdEl = document.getElementById('holdBoard');
       this.fxEl = document.getElementById('fx');
       this.scoreEl = document.getElementById('score');
       this.levelEl = document.getElementById('level');
@@ -81,6 +82,12 @@
         this.nextEl.appendChild(d);
         return d;
       });
+      this.holdCells = Array.from({ length: 16 }, () => {
+        const d = document.createElement('div');
+        d.className = 'cell';
+        this.holdEl.appendChild(d);
+        return d;
+      });
     }
 
     toast(msg) {
@@ -101,6 +108,16 @@
       if (game.mode === 'neon') this.energyBar.style.width = `${game.energy}%`;
 
       const display = game.board.map((r) => r.map((c) => c ? { ...c } : null));
+      const ghost = game.getGhostPosition();
+      for (let y = 0; y < game.piece.matrix.length; y++) {
+        for (let x = 0; x < game.piece.matrix[y].length; x++) {
+          if (!game.piece.matrix[y][x]) continue;
+          const gy = ghost + y, gx = game.piece.x + x;
+          if (gy >= 0 && gy < ROWS && gx >= 0 && gx < COLS && !display[gy][gx]) {
+            display[gy][gx] = { modeClass: modeCfg.className, ghost: true };
+          }
+        }
+      }
       for (let y = 0; y < game.piece.matrix.length; y++) {
         for (let x = 0; x < game.piece.matrix[y].length; x++) {
           if (!game.piece.matrix[y][x]) continue;
@@ -118,6 +135,7 @@
           const v = display[y][x];
           if (!v) continue;
           c.classList.add('block', v.modeClass || modeCfg.className);
+          if (v.ghost) c.classList.add('ghost');
           if (v.cracked) c.classList.add('cracked');
           if (v.reinforced) c.classList.add('reinforced');
           if (v.hp === 1) c.classList.add('hp1');
@@ -131,6 +149,18 @@
         for (let x = 0; x < n.matrix[y].length; x++) {
           if (!n.matrix[y][x]) continue;
           this.nextCells[(oy + y) * 4 + (ox + x)].className = `cell block ${modeCfg.className}`;
+        }
+      }
+
+      this.holdCells.forEach((c) => c.className = 'cell');
+      if (game.hold) {
+        const h = game.hold;
+        const hx = Math.floor((4 - h.matrix[0].length) / 2), hy = Math.floor((4 - h.matrix.length) / 2);
+        for (let y = 0; y < h.matrix.length; y++) {
+          for (let x = 0; x < h.matrix[y].length; x++) {
+            if (!h.matrix[y][x]) continue;
+            this.holdCells[(hy + y) * 4 + (hx + x)].className = `cell block ${modeCfg.className}`;
+          }
         }
       }
     }
@@ -170,6 +200,8 @@
       this.combo = 0; this.paused = false; this.running = false; this.over = false;
       this.specialStatus = '等待开始';
       this.lastRotateAt = 0;
+      this.hold = null;
+      this.canHold = true;
       this.piece = this.makePiece();
       this.next = this.makePiece();
     }
@@ -241,6 +273,12 @@
       }
     }
 
+    getGhostPosition() {
+      let gy = this.piece.y;
+      while (!this.collide(this.piece, 0, gy - this.piece.y + 1, this.piece.matrix)) gy++;
+      return gy;
+    }
+
     // 果冻模式：落地后轻微位移修正
     jellyAdjust() {
       if (this.mode !== 'jelly') return;
@@ -276,7 +314,26 @@
       this.updateScore(cleared);
       this.piece = this.next;
       this.next = this.makePiece();
+      this.canHold = true;
       if (this.collide(this.piece, 0, 0)) { this.over = true; this.running = false; }
+    }
+
+    holdSwap() {
+      if (!this.canHold || this.over || this.paused || !this.running) return;
+      const current = { key: this.piece.key, matrix: clone(this.piece.matrix) };
+      if (!this.hold) {
+        this.hold = current;
+        this.piece = this.next;
+        this.next = this.makePiece();
+      } else {
+        const swap = this.hold;
+        this.hold = current;
+        this.piece = { key: swap.key, matrix: clone(swap.matrix), x: 0, y: -1 };
+      }
+      this.piece.x = Math.floor((COLS - this.piece.matrix[0].length) / 2);
+      this.piece.y = -1;
+      this.canHold = false;
+      this.specialStatus = '已暂存方块';
     }
 
     applyWoodReinforce(placed) {
@@ -443,7 +500,7 @@
 
   document.addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase();
-    if (["arrowleft","arrowright","arrowup","arrowdown"," ","p","r"].includes(k)) e.preventDefault();
+    if (["arrowleft","arrowright","arrowup","arrowdown"," ","p","r","c"].includes(k)) e.preventDefault();
     if (!screens.game.classList.contains('active')) return;
 
     if (k === 'p') game.paused = !game.paused;
@@ -455,6 +512,7 @@
     if (k === 'arrowdown') game.move(0, 1);
     if (k === 'arrowup') game.rotateNow();
     if (k === ' ') game.hardDrop();
+    if (k === 'c') game.holdSwap();
   });
 
   /** ===================== 主循环 ===================== */

@@ -12,6 +12,7 @@
 .layout{display:grid;grid-template-columns:1fr 310px;gap:14px}.panel{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px}
 .board-panel{padding:14px}.board{width:var(--board);height:calc(var(--board)*2);margin:auto;display:grid;grid-template-columns:repeat(10,1fr);gap:2px;background:rgba(255,255,255,.04);padding:6px;border-radius:8px}
 .cell{background:rgba(14,20,40,.7);border-radius:3px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.03)}.cell.block{border:1px solid rgba(255,255,255,.22)}
+.cell.ghost{opacity:.3;border-style:dashed}
 .mode-metal{background:linear-gradient(130deg,#ecf3ff,#8298bb 35%,#dbe8ff 60%,#6f809f)}
 .mode-glass{background:linear-gradient(130deg,rgba(163,227,255,.45),rgba(128,170,255,.2));box-shadow:inset 0 0 9px rgba(255,255,255,.45),0 0 8px rgba(130,229,255,.4)}
 .mode-wood{background:repeating-linear-gradient(18deg,#8e5d3b,#8e5d3b 4px,#74482f 4px,#74482f 8px)}

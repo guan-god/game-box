@@ -12,6 +12,7 @@
     upgrade: document.getElementById('upgradeScreen'),
     result: document.getElementById('resultScreen'),
     unlock: document.getElementById('unlockScreen'),
+    settings: document.getElementById('settingsScreen'),
   };
   const show = (name, active = true) => screens[name].classList.toggle('active', active);
   const showOnly = (name) => Object.entries(screens).forEach(([k, el]) => el.classList.toggle('active', k === name));
@@ -36,6 +37,8 @@
   };
   const meta = Object.assign({}, defaultMeta, JSON.parse(localStorage.getItem(metaKey) || '{}'));
   const saveMeta = () => localStorage.setItem(metaKey, JSON.stringify(meta));
+  const settingsKey = 'neon_rift_settings_v1';
+  const loadedSettings = JSON.parse(localStorage.getItem(settingsKey) || '{}');
 
   // ======================= 数据池 =======================
   const CHARACTERS = [
@@ -76,6 +79,8 @@
     teleporter: { hp: 24, speed: 66, dmg: 12, teleport: true, color: '#72e6ff' },
     aura: { hp: 46, speed: 56, dmg: 9, aura: true, color: '#cc7dff' },
     boss: { hp: 650, speed: 52, dmg: 28, boss: true, ranged: true, cd: 1.2, color: '#ff3f64' },
+    boss_tyrant: { hp: 840, speed: 58, dmg: 32, boss: true, ranged: true, cd: 1.0, charge: true, color: '#ff4b7d' },
+    boss_orbit: { hp: 760, speed: 48, dmg: 24, boss: true, ranged: true, cd: .8, nova: true, color: '#8b68ff' },
   };
 
   // ======================= Canvas + 输入 =======================
@@ -111,7 +116,15 @@
     events: { next: 40, current: '平稳期', doubleXp: 0, cursed: 0, meteor: 0 },
     enemySpeedMul: 1, fireMul: 1, eliteMul: 1, xpMul: 1,
     rewardCrystals: 0,
+    floatTexts: [],
+    shake: 0,
+    settings: { shake: true, damageNum: true, liteFx: false },
+    terrain: [],
+    missions: [],
+    missionProgress: { kill: 0, elite: 0, chest: 0, survive: 0 },
   };
+  Object.assign(state.settings, loadedSettings);
+  const saveSettings = () => localStorage.setItem(settingsKey, JSON.stringify(state.settings));
 
   // ======================= 游戏逻辑 =======================
   function makePlayer(char) {
@@ -122,6 +135,50 @@
       baseCrit: char.mult.crit || 0.06,
       magnet: 95, dashCd: 0,
     };
+  }
+
+  function generateTerrain() {
+    const terrain = [];
+    for (let i = 0; i < 6; i++) {
+      terrain.push({ type: 'wall', x: rnd(180, W - 180), y: rnd(130, H - 130), r: rnd(24, 42) });
+    }
+    for (let i = 0; i < 3; i++) {
+      terrain.push({ type: 'lava', x: rnd(180, W - 180), y: rnd(130, H - 130), r: rnd(34, 56) });
+    }
+    return terrain;
+  }
+
+  function initMissions() {
+    const pool = [
+      { id: 'kill', label: '击杀 120 敌人', target: 120, reward: '经验+40' },
+      { id: 'elite', label: '击杀 6 精英', target: 6, reward: '水晶+40' },
+      { id: 'chest', label: '开启 3 宝箱', target: 3, reward: '随机武器升级' },
+      { id: 'survive', label: '生存 300 秒', target: 300, reward: '满血+护盾' },
+    ];
+    state.missions = pool.sort(() => Math.random() - 0.5).slice(0, 3).map((m) => ({ ...m, done: false }));
+    state.missionProgress = { kill: 0, elite: 0, chest: 0, survive: 0 };
+  }
+
+  function applyMissionReward(mission) {
+    if (mission.id === 'kill') gainXP(40);
+    if (mission.id === 'elite') state.rewardCrystals += 40;
+    if (mission.id === 'chest' && state.weaponBag.length) addWeapon(pick(state.weaponBag).id, 1);
+    if (mission.id === 'survive') {
+      state.player.hp = state.player.maxHp;
+      state.player.shield += 25;
+    }
+    toast(`任务完成：${mission.label}（${mission.reward}）`);
+  }
+
+  function updateMissions(dt) {
+    state.missionProgress.survive += dt;
+    for (const m of state.missions) {
+      if (m.done) continue;
+      if ((state.missionProgress[m.id] || 0) >= m.target) {
+        m.done = true;
+        applyMissionReward(m);
+      }
+    }
   }
 
   function addWeapon(id, level = 1) {
@@ -162,9 +219,20 @@
   }
 
   function spawnBurst(x, y, color, n = 8) {
+    if (state.settings.liteFx) n = Math.max(3, Math.floor(n / 2));
     for (let i = 0; i < n; i++) {
       state.particles.push({ x, y, vx: rnd(-120,120), vy: rnd(-120,120), t: rnd(.25,.7), color, s: rnd(2,5) });
     }
+  }
+
+  function addFloatText(x, y, text, color = '#ffffff') {
+    if (!state.settings.damageNum) return;
+    state.floatTexts.push({ x, y, vy: -36, t: 0.65, text, color });
+  }
+
+  function addShake(power = 8) {
+    if (!state.settings.shake) return;
+    state.shake = Math.max(state.shake, power);
   }
 
   function spawnEnemy(type, elite = false) {
@@ -193,7 +261,11 @@
     for (let i = 0; i < count; i++) spawnEnemy(pick(pool));
 
     if (Math.random() < 0.08 * state.eliteMul) spawnEnemy(pick(pool), true);
-    if (Math.floor(state.time) % 180 === 0 && !state._bossFlag) { spawnEnemy('boss', true); state._bossFlag = true; }
+    if (Math.floor(state.time) % 180 === 0 && !state._bossFlag) {
+      spawnEnemy(pick(['boss', 'boss_tyrant', 'boss_orbit']), true);
+      state._bossFlag = true;
+      toast('Boss 来袭！');
+    }
     if (Math.floor(state.time) % 180 === 5) state._bossFlag = false;
   }
 
@@ -274,6 +346,8 @@
 
   function killEnemy(e) {
     state.kills++;
+    state.missionProgress.kill++;
+    if (e.elite || (ENEMY_TYPES[e.type]?.boss)) state.missionProgress.elite++;
     state.rewardCrystals += e.elite ? 3 : 1;
     state.xpOrbs.push({ x: e.x, y: e.y, v: e.elite ? 16 : 8, t: 10 });
     if (e.elite && Math.random() < 0.45) state.chests.push({ x: e.x, y: e.y, r: 12 });
@@ -282,14 +356,17 @@
         state.enemies.push({ ...e, type: 'chaser', hp: e.maxHp * 0.35, maxHp: e.maxHp * 0.35, dmg: 7, speed: 120, elite: false });
       }
     }
+    addShake(e.elite ? 10 : 4);
     spawnBurst(e.x, e.y, e.elite ? '#ffdb58' : '#7fd1ff', e.elite ? 20 : 10);
   }
 
   function damageEnemy(e, dmg, type = '') {
     const stats = getStats();
     let hit = dmg;
-    if (Math.random() < stats.crit) hit *= 2;
+    const crit = Math.random() < stats.crit;
+    if (crit) hit *= 2;
     e.hp -= hit;
+    addFloatText(e.x, e.y - 14, `${Math.floor(hit)}${crit ? '!' : ''}`, crit ? '#ffd45a' : '#d9f2ff');
 
     if (stats.burn || type === 'ember') e.burn = 2.6;
     if (stats.freeze || type === 'ice') e.freeze = 1.1;
@@ -315,6 +392,8 @@
       dmg -= a;
     }
     state.player.hp -= dmg;
+    addShake(6);
+    addFloatText(state.player.x, state.player.y - 22, `-${Math.floor(dmg)}`, '#ff89a4');
     spawnBurst(state.player.x, state.player.y, '#ff5f7f', 12);
     if (state.player.hp <= 0) endRun(false);
   }
@@ -322,6 +401,7 @@
   function updatePlayer(dt) {
     const p = state.player;
     const stats = getStats();
+    const prevX = p.x, prevY = p.y;
     let x = 0, y = 0;
     if (keys.has('w') || keys.has('arrowup')) y -= 1;
     if (keys.has('s') || keys.has('arrowdown')) y += 1;
@@ -330,6 +410,18 @@
     const len = Math.hypot(x, y) || 1;
     p.x += (x / len) * p.speed * stats.move * dt;
     p.y += (y / len) * p.speed * stats.move * dt;
+
+    for (const t of state.terrain) {
+      const d = Math.hypot(p.x - t.x, p.y - t.y);
+      if (t.type === 'wall' && d < t.r + p.r) {
+        p.x = prevX;
+        p.y = prevY;
+      }
+      if (t.type === 'lava' && d < t.r + p.r * 0.2) {
+        damagePlayer(10 * dt);
+      }
+    }
+
     p.x = clamp(p.x, 20, W - 20);
     p.y = clamp(p.y, 20, H - 20);
     p.dashCd = Math.max(0, p.dashCd - dt);
@@ -359,7 +451,27 @@
         if (e.rangedCd <= 0) {
           const a = Math.atan2(dy, dx);
           state.enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a)*180, vy: Math.sin(a)*180, dmg: e.dmg * 0.7, life: 3 });
+          if (ENEMY_TYPES[e.type]?.nova) {
+            for (let i = 0; i < 8; i++) {
+              const na = (Math.PI * 2 * i) / 8;
+              state.enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(na)*140, vy: Math.sin(na)*140, dmg: e.dmg * 0.45, life: 2.2 });
+            }
+          }
           e.rangedCd = ENEMY_TYPES[e.type].cd || 1.5;
+        }
+      }
+
+      if (ENEMY_TYPES[e.type]?.charge && Math.random() < 0.006) {
+        e.x += (dx / d) * 80;
+        e.y += (dy / d) * 80;
+      }
+
+      for (const t of state.terrain) {
+        if (t.type !== 'wall') continue;
+        const dis = Math.hypot(e.x - t.x, e.y - t.y);
+        if (dis < t.r + 10) {
+          e.x += (e.x - t.x) / (dis || 1) * 20 * dt;
+          e.y += (e.y - t.y) / (dis || 1) * 20 * dt;
         }
       }
 
@@ -443,6 +555,7 @@
     state.chests = state.chests.filter((c) => {
       if (Math.hypot(state.player.x-c.x, state.player.y-c.y) < 24) {
         toast('开启宝箱！获得双升级');
+        state.missionProgress.chest++;
         openUpgrade(true);
         return false;
       }
@@ -553,11 +666,28 @@
   function drawWorld() {
     // 背景层
     ctx.clearRect(0,0,W,H);
+    ctx.save();
+    if (state.shake > 0) {
+      const mag = state.shake;
+      ctx.translate(rnd(-mag, mag), rnd(-mag, mag));
+    }
     for (let i = 0; i < 90; i++) {
       const x = (i * 147 + state.time * (i % 3 + 1) * 12) % (W + 120) - 60;
       const y = (i * 83 + state.time * (i % 5 + 1) * 8) % (H + 120) - 60;
       ctx.fillStyle = `rgba(80,120,255,${0.08 + (i % 8) * 0.01})`;
       ctx.beginPath(); ctx.arc(x, y, (i % 3) + 1.2, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // 地形
+    for (const t of state.terrain) {
+      if (t.type === 'wall') {
+        ctx.fillStyle = 'rgba(90,108,160,.5)';
+        ctx.strokeStyle = 'rgba(170,198,255,.6)';
+      } else {
+        ctx.fillStyle = 'rgba(255,96,70,.25)';
+        ctx.strokeStyle = 'rgba(255,137,92,.75)';
+      }
+      ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     }
 
     // AOE
@@ -604,6 +734,14 @@
       ctx.beginPath(); ctx.arc(pz.x, pz.y, pz.s, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
     }
+
+    // 伤害数字
+    for (const t of state.floatTexts) {
+      ctx.fillStyle = t.color;
+      ctx.font = 'bold 14px Segoe UI';
+      ctx.fillText(t.text, t.x, t.y);
+    }
+    ctx.restore();
   }
 
   function updateHUD() {
@@ -614,6 +752,10 @@
     document.getElementById('hudTime').textContent = fmtTime(state.time);
     document.getElementById('hudMod').textContent = state.mapMod.name;
     document.getElementById('hudEvent').textContent = state.events.current;
+    const missionPending = state.missions.find((m) => !m.done);
+    document.getElementById('hudMission').textContent = missionPending
+      ? `${missionPending.label} (${Math.floor(state.missionProgress[missionPending.id] || 0)}/${missionPending.target})`
+      : '全部完成';
 
     document.getElementById('hpBar').style.width = `${clamp(state.player.hp / state.player.maxHp, 0, 1) * 100}%`;
     document.getElementById('xpBar').style.width = `${clamp(state.xp / state.xpNeed, 0, 1) * 100}%`;
@@ -656,6 +798,8 @@
     state.time = 0; state.kills = 0; state.level = 1; state.xp = 0; state.xpNeed = 30;
     state.events = { next: rnd(25, 45), current: '平稳期', doubleXp: 0, cursed: 0, meteor: 0 };
     state.rewardCrystals = 0;
+    state.terrain = generateTerrain();
+    initMissions();
     state.enemySpeedMul = 1; state.fireMul = 1; state.eliteMul = 1; state.xpMul = 1;
     state.mapMod.apply(state);
 
@@ -667,7 +811,7 @@
 
     state.running = true; state.paused = false; state.inUpgrade = false;
     showOnly('game');
-    show('upgrade', false); show('result', false); show('unlock', false);
+    show('upgrade', false); show('result', false); show('unlock', false); show('settings', false);
     toast(`地图词缀：${state.mapMod.name}`);
   }
 
@@ -698,6 +842,11 @@
     list.innerHTML = CHARACTERS.map((c) => {
       const ok = meta.unlockedChars.includes(c.id) || !c.unlock;
       return `<article class="card"><h3>${c.name}</h3><p>${c.talent}</p><p>${ok ? '已解锁' : `需要 ${c.unlock} 水晶`}</p></article>`;
+    }).join('') + WEAPONS.map((w) => {
+      const ok = meta.unlockedWeapons.includes(w.id);
+      return `<article class="card"><h3>武器图鉴：${w.name}</h3><p>${ok ? '可在本局随机出现' : '暂未解锁'}</p></article>`;
+    }).join('') + PASSIVES.map((p) => {
+      return `<article class="card"><h3>被动图鉴：${p.name}</h3><p>${p.desc}</p></article>`;
     }).join('');
     show('unlock', true);
   }
@@ -719,6 +868,7 @@
       updateAOE(dt);
       updateOrbs(dt);
       updateEvents(dt);
+      updateMissions(dt);
 
       const stats = getStats();
       state.weaponBag.forEach((w) => fireWeapon(w, dt, stats));
@@ -727,6 +877,12 @@
         p.x += p.vx * dt; p.y += p.vy * dt; p.t -= dt;
       }
       state.particles = state.particles.filter((p) => p.t > 0);
+      for (const t of state.floatTexts) {
+        t.y += t.vy * dt;
+        t.t -= dt;
+      }
+      state.floatTexts = state.floatTexts.filter((t) => t.t > 0);
+      state.shake = Math.max(0, state.shake - dt * 18);
     }
 
     if (screens.game.classList.contains('active')) {
@@ -738,13 +894,24 @@
   }
 
   // ======================= UI绑定 =======================
+  const setShakeEl = document.getElementById('setShake');
+  const setDamageEl = document.getElementById('setDamageNum');
+  const setLiteFxEl = document.getElementById('setLiteFx');
+  setShakeEl.checked = state.settings.shake;
+  setDamageEl.checked = state.settings.damageNum;
+  setLiteFxEl.checked = state.settings.liteFx;
+  setShakeEl.onchange = () => { state.settings.shake = setShakeEl.checked; saveSettings(); };
+  setDamageEl.onchange = () => { state.settings.damageNum = setDamageEl.checked; saveSettings(); };
+  setLiteFxEl.onchange = () => { state.settings.liteFx = setLiteFxEl.checked; saveSettings(); };
+
   document.getElementById('startBtn').onclick = () => startRun(state.selectedChar.id);
   document.getElementById('pauseBtn').onclick = () => state.paused = !state.paused;
   document.getElementById('unlockBtn').onclick = () => openUnlock();
   document.getElementById('closeUnlockBtn').onclick = () => show('unlock', false);
   document.getElementById('againBtn').onclick = () => startRun(state.selectedChar.id);
   document.getElementById('menuBtn').onclick = () => { showOnly('menu'); rollMapMod(); refreshCharList(); };
-  document.getElementById('settingsBtn').onclick = () => toast('设置示例：已启用屏幕震动与伤害数字（可继续扩展）');
+  document.getElementById('settingsBtn').onclick = () => show('settings', true);
+  document.getElementById('closeSettingsBtn').onclick = () => show('settings', false);
 
   // 初始
   rollMapMod();
