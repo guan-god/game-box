@@ -125,7 +125,8 @@
   const ctx = canvas.getContext('2d');
   const nextBtn = document.getElementById('nextBtn');
   const retryBtn = document.getElementById('retryBtn');
-  const state = { shape:[], dragging:false, dragStart:[0,0], dragEnd:[0,0], cutPolys:null, anim:0, multiplier:1, best:Number(localStorage.getItem('cut_best')||0) };
+  const state = { shape:[], dragging:false, dragStart:[0,0], dragEnd:[0,0], cutPolys:null, anim:0, multiplier:1, best:0 };
+  localStorage.setItem('cut_best', '0');
   ui.bestScore.textContent = state.best;
 
   function drawPoly(poly, fill, stroke, offset=[0,0]) {

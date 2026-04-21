@@ -16,8 +16,9 @@ const state = {
   dragStart: [0, 0],
   dragEnd: [0, 0],
   cutPolys: null,
-  best: Number(localStorage.getItem('cut_best') || 0),
+  best: 0,
 };
+localStorage.setItem('cut_best', '0');
 ui.setBest(state.best);
 
 function newRound() {
