@@ -10,12 +10,18 @@ let pendingAction = null;
 const $ = (id) => document.getElementById(id);
 
 function initMenu() {
+  // 全局兜底：即使 addEventListener 在部分环境异常，也可通过 inline onclick 正常进入。
+  window.__ML_startGame = startGame;
+  window.__ML_toRules = () => switchScreen('rules-screen');
+  window.__ML_toMenu = () => switchScreen('menu-screen');
+
   $('mode-select').addEventListener('change', () => {
     $('difficulty-wrap').style.display = $('mode-select').value === 'pve' ? 'flex' : 'none';
   });
-  $('rules-btn').onclick = () => switchScreen('rules-screen');
-  $('back-menu-btn').onclick = () => switchScreen('menu-screen');
+  $('rules-btn').onclick = window.__ML_toRules;
+  $('back-menu-btn').onclick = window.__ML_toMenu;
   $('start-btn').onclick = startGame;
+
 }
 
 function startGame() {

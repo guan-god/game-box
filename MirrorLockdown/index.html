@@ -50,8 +50,8 @@
             </label>
           </div>
           <div class="menu-actions">
-            <button id="start-btn" class="primary" type="button">开始游戏</button>
-            <button id="rules-btn" type="button">规则说明</button>
+            <button id="start-btn" class="primary" type="button" onclick="window.__ML_startGame && window.__ML_startGame()">开始游戏</button>
+            <button id="rules-btn" type="button" onclick="window.__ML_toRules && window.__ML_toRules()">规则说明</button>
           </div>
         </div>
       </section>
@@ -66,7 +66,7 @@
             <li>胜利条件：击破主核 / 连续两回合占领中心区 / 让对手无有效行动。</li>
             <li>地形与事件都为镜像对称，避免开局天然优势。</li>
           </ol>
-          <button id="back-menu-btn" type="button">返回主菜单</button>
+          <button id="back-menu-btn" type="button" onclick="window.__ML_toMenu && window.__ML_toMenu()">返回主菜单</button>
         </div>
       </section>
 
