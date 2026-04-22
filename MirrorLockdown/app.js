@@ -28,7 +28,38 @@
   const $ = (id) => document.getElementById(id);
   const inBoard = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
 
-  let state = null;
+  function createDefaultState() {
+    return {
+      board: [],
+      players: {
+        blue: { mana: 1, maxMana: 1, deck: [], hand: [], coreHp: 20, heroSkillUsed: false },
+        red: { mana: 1, maxMana: 1, deck: [], hand: [], coreHp: 20, heroSkillUsed: false },
+      },
+      hands: { blue: [], red: [] },
+      decks: { blue: [], red: [] },
+      crystals: { blue: 20, red: 20 },
+      mana: {
+        blue: { current: 1, max: 1 },
+        red: { current: 1, max: 1 },
+      },
+      turn: 1,
+      currentPlayer: 'blue',
+      phase: 'main',
+      selectedUnit: null,
+      winner: null,
+      logs: [],
+      mode: 'pvp',
+      difficulty: 'normal',
+      sound: true,
+      units: [],
+      terrain: {},
+      pendingCast: null,
+      actionMode: null,
+      current: 'blue',
+    };
+  }
+
+  let state = createDefaultState();
 
   function makeDeck() {
     return shuffle([
@@ -42,6 +73,7 @@
     const blueDeck = makeDeck();
     const redDeck = makeDeck();
     const s = {
+      ...createDefaultState(),
       mode: opts.mode,
       difficulty: opts.difficulty,
       sound: opts.sound,
@@ -62,7 +94,23 @@
     for (let i = 0; i < 4; i += 1) { drawCard(s, 'blue', 1); drawCard(s, 'red', 1); }
     const second = opts.first === 'blue' ? 'red' : 'blue';
     s.players[second].hand.push('coin');
+    syncDerivedState(s);
     startTurn(s, s.current, true);
+    syncDerivedState(s);
+    return s;
+  }
+
+  function syncDerivedState(s) {
+    s.currentPlayer = s.current;
+    s.phase = 'main';
+    s.hands = { blue: s.players.blue.hand, red: s.players.red.hand };
+    s.decks = { blue: s.players.blue.deck, red: s.players.red.deck };
+    s.crystals = { blue: s.players.blue.coreHp, red: s.players.red.coreHp };
+    s.mana = {
+      blue: { current: s.players.blue.mana, max: s.players.blue.maxMana },
+      red: { current: s.players.red.mana, max: s.players.red.maxMana },
+    };
+    s.board = Array.from({ length: H }, (_, y) => Array.from({ length: W }, (_, x) => ({ x, y })));
     return s;
   }
 
@@ -117,7 +165,7 @@
       }
     });
 
-    log(`${sideTxt(side)}方回合开始：法力 ${p.mana}/${p.maxMana}`);
+    pushLog(s, `${sideTxt(side)}方回合开始：法力 ${p.mana}/${p.maxMana}`);
   }
 
   function endTurn() {
@@ -127,6 +175,7 @@
     if (state.current === 'red') state.turn += 1;
     state.current = next;
     startTurn(state, next, false);
+    syncDerivedState(state);
     renderAll();
     if (state.mode === 'pve' && state.current === 'red' && !state.winner) {
       setTimeout(aiTurn, 300);
@@ -136,6 +185,7 @@
   function tickTerrain() {
     Object.keys(state.terrain).forEach((k) => {
       const t = state.terrain[k];
+      if (!t) return;
       if (t.ttl < 90) {
         t.ttl -= 1;
         if (t.ttl <= 0) delete state.terrain[k];
@@ -211,12 +261,12 @@
   function castNoTarget(cardId, side) {
     if (cardId === 'coin') {
       state.players[side].mana += 1;
-      log(`${sideTxt(side)}使用幸运币，法力 +1`);
+      pushLog(state, `${sideTxt(side)}使用幸运币，法力 +1`);
       beep(520, 0.05);
     }
     if (cardId === 'draw_sync') {
       drawCard(state, side, 2);
-      log(`${sideTxt(side)}抽 2 张牌`);
+      pushLog(state, `${sideTxt(side)}抽 2 张牌`);
     }
   }
 
@@ -253,7 +303,7 @@
       if (dist <= unit.move && canMoveThrough(unit, x, y)) {
         unit.x = x; unit.y = y; unit.moved = true;
         checkMine(unit);
-        log(`${sideTxt(side)}${unit.name}移动`);
+        pushLog(state, `${sideTxt(side)}${unit.name}移动`);
         beep(460, 0.04);
       }
       renderAll();
@@ -273,7 +323,7 @@
           const dmg = unit.atk + auraAtkBonus(unit);
           state.players[side === 'blue' ? 'red' : 'blue'].coreHp -= dmg;
           unit.attacksLeft -= 1;
-          log(`${sideTxt(side)}${unit.name}攻击敌方水晶 ${dmg} 点`);
+          pushLog(state, `${sideTxt(side)}${unit.name}攻击敌方水晶 ${dmg} 点`);
           flashCell(x, y, '#ff9f5b');
           beep(230, 0.07);
           checkWinner();
@@ -311,7 +361,7 @@
         deathrattle: card.name === '相位法师',
       };
       state.units.push(u);
-      log(`${sideTxt(side)}召唤 ${card.name}`);
+      pushLog(state, `${sideTxt(side)}召唤 ${card.name}`);
       flashCell(x, y, '#7ecbff');
       beep(530, 0.05);
       onSummonEffect(u, side);
@@ -322,38 +372,38 @@
       if (card.name === '震荡术') {
         if (!target || target.side === side) return false;
         pushUnit(target, side === 'blue' ? 1 : -1, 0);
-        log(`${sideTxt(side)}施放震荡术`);
+        pushLog(state, `${sideTxt(side)}施放震荡术`);
         return true;
       }
       if (card.name === '冰封术') {
         if (!target || target.side === side) return false;
         target.frozen = 1;
-        log(`${sideTxt(side)}冰封 ${target.name}`);
+        pushLog(state, `${sideTxt(side)}冰封 ${target.name}`);
         return true;
       }
       if (card.name === '奥能屏障') {
         if (target || terrainAt(x, y) || !inBoard(x, y)) return false;
         state.terrain[key(x, y)] = { type: 'barrier', ttl: 2, side };
-        log(`${sideTxt(side)}生成奥能屏障`);
+        pushLog(state, `${sideTxt(side)}生成奥能屏障`);
         return true;
       }
       if (card.name === '过载核心') {
         if (!target || target.side !== side) return false;
         target.atk += 1;
-        log(`${sideTxt(side)}强化 ${target.name} 攻击 +1`);
+        pushLog(state, `${sideTxt(side)}强化 ${target.name} 攻击 +1`);
         return true;
       }
       if (card.name === '晶核修补') {
         const cp = corePos(side);
         if (x !== cp.x || y !== cp.y) return false;
         state.players[side].coreHp = Math.min(20, state.players[side].coreHp + 3);
-        log(`${sideTxt(side)}水晶回复 3`);
+        pushLog(state, `${sideTxt(side)}水晶回复 3`);
         return true;
       }
       if (card.name === '脉冲地雷') {
         if (target || terrainAt(x, y) || !inBoard(x, y)) return false;
         state.terrain[key(x, y)] = { type: 'mine', ttl: 3, side };
-        log(`${sideTxt(side)}部署脉冲地雷`);
+        pushLog(state, `${sideTxt(side)}部署脉冲地雷`);
         return true;
       }
     }
@@ -368,10 +418,10 @@
       const target = state.units.find((a) => a.alive && a.side === side && a.hp < a.maxHp);
       if (target) {
         target.hp = Math.min(target.maxHp, target.hp + 2);
-        log(`${u.name}修复 ${target.name} 2 点`);
+        pushLog(state, `${u.name}修复 ${target.name} 2 点`);
       } else {
         state.players[side].coreHp = Math.min(20, state.players[side].coreHp + 2);
-        log(`${u.name}修复己方水晶 2 点`);
+        pushLog(state, `${u.name}修复己方水晶 2 点`);
       }
     }
   }
@@ -401,18 +451,18 @@
     if (!target.alive) return;
     if (target.shield) {
       target.shield = false;
-      log(`${target.name}护盾抵消伤害`);
+      pushLog(state, `${target.name}护盾抵消伤害`);
       return;
     }
     target.hp -= dmg;
     flashCell(target.x, target.y, '#ff789e');
-    log(`${logText}，造成 ${dmg}`);
+    pushLog(state, `${logText}，造成 ${dmg}`);
     if (target.hp <= 0) killUnit(target);
   }
 
   function killUnit(u) {
     u.alive = false;
-    log(`${u.name}被击破`);
+    pushLog(state, `${u.name}被击破`);
     if (u.deathrattle) {
       state.units.filter((a) => a.alive && a.side !== u.side && Math.abs(a.x - u.x) + Math.abs(a.y - u.y) <= 1).forEach((a) => hitRaw(a, 1, `${u.name}亡语震荡`));
     }
@@ -485,7 +535,7 @@
         } else if (canAttackCore(u)) {
           const dmg = u.atk + auraAtkBonus(u);
           state.players.blue.coreHp -= dmg;
-          log(`红方${u.name}攻击蓝方水晶 ${dmg}`);
+          pushLog(state, `红方${u.name}攻击蓝方水晶 ${dmg}`);
           u.attacksLeft -= 1;
           checkWinner();
           if (state.winner) break;
@@ -525,13 +575,17 @@
   }
 
   function renderAll() {
-    $('turn-label').textContent = String(state.turn);
-    $('side-label').textContent = `${sideTxt(state.current)}方`;
-    $('mana-label').textContent = `${state.players[state.current].mana}/${state.players[state.current].maxMana}`;
-    $('blue-core').textContent = String(state.players.blue.coreHp);
-    $('red-core').textContent = String(state.players.red.coreHp);
-    $('deck-count').textContent = `蓝 ${state.players.blue.deck.length} 张 / 红 ${state.players.red.deck.length} 张`;
-    $('status-box').textContent = `当前模式：${state.mode === 'pve' ? 'PVE' : 'PVP'}，AI：${state.difficulty}`;
+    const s = state || createDefaultState();
+    syncDerivedState(s);
+    $('turn-label').textContent = String(s.turn || 1);
+    $('side-label').textContent = `${sideTxt(s.current || 'blue')}方`;
+    const side = s.current || 'blue';
+    const mp = (s.players && s.players[side]) ? s.players[side] : { mana: 0, maxMana: 0 };
+    $('mana-label').textContent = `${mp.mana}/${mp.maxMana}`;
+    $('blue-core').textContent = String((s.players && s.players.blue && s.players.blue.coreHp) || 20);
+    $('red-core').textContent = String((s.players && s.players.red && s.players.red.coreHp) || 20);
+    $('deck-count').textContent = `蓝 ${((s.players&&s.players.blue&&s.players.blue.deck)||[]).length} 张 / 红 ${((s.players&&s.players.red&&s.players.red.deck)||[]).length} 张`;
+    $('status-box').textContent = `当前模式：${s.mode === 'pve' ? 'PVE' : 'PVP'}，AI：${s.difficulty || 'normal'}`;
 
     renderBoard();
     renderHand();
@@ -542,6 +596,14 @@
   function renderBoard() {
     const board = $('board');
     board.innerHTML = '';
+    if (!state) {
+      for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        board.appendChild(cell);
+      }
+      return;
+    }
     const moveTargets = getMoveTargets();
     const attackTargets = getAttackTargets();
     const castTargets = getCastTargets();
@@ -578,11 +640,20 @@
   }
 
   function renderHand() {
+    if (!state) {
+      $('hand-list').innerHTML = '<div class="card unplayable">当前无手牌</div>';
+      return;
+    }
     const side = state.current;
     const p = state.players[side];
     const hand = $('hand-list');
     hand.innerHTML = '';
-    p.hand.forEach((id, idx) => {
+    const handArr = p && p.hand ? p.hand : [];
+    if (!handArr.length) {
+      $('hand-list').innerHTML = '<div class="card unplayable">当前无手牌</div>';
+      return;
+    }
+    handArr.forEach((id, idx) => {
       const c = CARD_POOL[id];
       if (!c) return;
       const item = document.createElement('button');
@@ -604,7 +675,14 @@
 
   function renderLogs() {
     const ul = $('logs'); ul.innerHTML = '';
-    state.logs.slice(-9).forEach((l) => { const li = document.createElement('li'); li.textContent = l; ul.appendChild(li); });
+    const logs = (state && Array.isArray(state.logs)) ? state.logs : [];
+    if (!logs.length) {
+      const li = document.createElement('li');
+      li.textContent = '暂无战斗日志';
+      ul.appendChild(li);
+      return;
+    }
+    logs.slice(-9).forEach((l) => { const li = document.createElement('li'); li.textContent = l; ul.appendChild(li); });
   }
 
   function getMoveTargets() {
@@ -644,7 +722,12 @@
   }
 
   function hint(msg) { $('hint').textContent = msg; }
-  function log(msg) { state.logs.push(msg); }
+  function pushLog(s, msg) {
+    if (!s) return;
+    if (!Array.isArray(s.logs)) s.logs = [];
+    s.logs.push(msg);
+  }
+  function log(msg) { pushLog(state, msg); }
 
   function flashCell(x, y, color) {
     const cell = [...document.querySelectorAll('.cell')][y * W + x];
@@ -672,9 +755,11 @@
         renderAll();
         if (state.mode === 'pve' && state.current === 'red') setTimeout(aiTurn, 300);
       } catch (e) {
+        state = createDefaultState();
         switchScreen('game-screen');
         $('runtime-error').classList.remove('hidden');
         $('runtime-error').textContent = `初始化失败：${e.message || e}`;
+        renderAll();
       }
     };
     $('rules-btn').onclick = () => $('rules-modal').classList.remove('hidden');
