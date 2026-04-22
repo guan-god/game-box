@@ -19,7 +19,7 @@ python -m http.server 8000
 
 `http://localhost:8000`
 
-> 直接双击 `index.html` 在部分浏览器也可运行，但由于 ES Module 与音频策略，建议使用本地静态服务器。
+✅ 当前版本支持直接双击 `index.html` 打开运行（已改为单文件脚本入口，不依赖 ES Module 导入）。
 
 ## 文件结构
 
@@ -29,6 +29,7 @@ BombCatParty/
 ├─ styles.css            # 全局样式、布局、动画、弹窗
 ├─ README.md
 └─ js/
+   ├─ standalone.js      # 无模块依赖入口（file:// 直开可用）
    ├─ main.js            # 启动入口、屏幕切换、玩家交互流程
    ├─ engine.js          # 游戏规则与状态机（发牌/回合/抽牌/结算/淘汰/胜利）
    ├─ cards.js           # 卡牌定义与卡池构建
