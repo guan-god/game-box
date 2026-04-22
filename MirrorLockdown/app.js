@@ -60,6 +60,7 @@
   }
 
   let state = createDefaultState();
+  const FX_SPEED = { normal: 1, fast: 1.6 };
 
   function makeDeck() {
     return shuffle([
@@ -77,6 +78,7 @@
       mode: opts.mode,
       difficulty: opts.difficulty,
       sound: opts.sound,
+      animSpeed: opts.animSpeed || 'normal',
       turn: 1,
       current: opts.first,
       players: {
@@ -166,6 +168,8 @@
     });
 
     pushLog(s, `${sideTxt(side)}方回合开始：法力 ${p.mana}/${p.maxMana}`);
+    showTurnBanner(`${sideTxt(side)}方回合`);
+    playSfx('turn');
   }
 
   function endTurn() {
@@ -247,6 +251,7 @@
       castNoTarget(cardId, side);
       player.hand.splice(handIdx, 1);
       player.mana -= card.cost;
+      playSfx('card');
       renderAll();
       return;
     }
@@ -270,14 +275,14 @@
     }
   }
 
-  function onBoardClick(x, y) {
+  async function onBoardClick(x, y) {
     const side = state.current;
     const player = state.players[side];
 
     if (state.pendingCast && state.pendingCast.side === side) {
       const card = CARD_POOL[state.pendingCast.cardId];
       if (player.mana < card.cost) return;
-      if (!resolveCast(card, side, x, y)) return;
+      if (!(await resolveCast(card, side, x, y))) return;
       player.mana -= card.cost;
       player.hand.splice(state.pendingCast.handIdx, 1);
       state.pendingCast = null;
@@ -313,7 +318,7 @@
       const target = unitAt(x, y);
       if (target && target.side !== side) {
         if (attackableTargets(unit).some((t) => t.id === target.id)) {
-          hitUnit(unit, target);
+          await hitUnit(unit, target);
           unit.attacksLeft -= 1;
           renderAll();
         }
@@ -321,11 +326,12 @@
         const cp = corePos(side === 'blue' ? 'red' : 'blue');
         if (x === cp.x && y === cp.y && canAttackCore(unit)) {
           const dmg = unit.atk + auraAtkBonus(unit);
+          await playAttackAnim(unit, cp, true);
           state.players[side === 'blue' ? 'red' : 'blue'].coreHp -= dmg;
           unit.attacksLeft -= 1;
           pushLog(state, `${sideTxt(side)}${unit.name}攻击敌方水晶 ${dmg} 点`);
-          flashCell(x, y, '#ff9f5b');
-          beep(230, 0.07);
+          crystalHitFx(side === 'blue' ? 'red' : 'blue', dmg);
+          playSfx('crystal');
           checkWinner();
           renderAll();
         }
@@ -333,7 +339,7 @@
     }
   }
 
-  function resolveCast(card, side, x, y) {
+  async function resolveCast(card, side, x, y) {
     const target = unitAt(x, y);
 
     if (card.type === 'minion') {
@@ -361,9 +367,11 @@
         deathrattle: card.name === '相位法师',
       };
       state.units.push(u);
+      playCardFlight(state.pendingCast && state.pendingCast.handIdx, x, y, 'summon');
       pushLog(state, `${sideTxt(side)}召唤 ${card.name}`);
       flashCell(x, y, '#7ecbff');
-      beep(530, 0.05);
+      rippleFx(x, y, '#8de6ff');
+      playSfx('summon');
       onSummonEffect(u, side);
       return true;
     }
@@ -371,39 +379,54 @@
     if (card.type === 'spell' || card.type === 'terrain') {
       if (card.name === '震荡术') {
         if (!target || target.side === side) return false;
+        playCardFlight(state.pendingCast && state.pendingCast.handIdx, x, y, 'spell');
         pushUnit(target, side === 'blue' ? 1 : -1, 0);
         pushLog(state, `${sideTxt(side)}施放震荡术`);
+        playSfx('spell');
         return true;
       }
       if (card.name === '冰封术') {
         if (!target || target.side === side) return false;
+        playCardFlight(state.pendingCast && state.pendingCast.handIdx, x, y, 'spell');
         target.frozen = 1;
         pushLog(state, `${sideTxt(side)}冰封 ${target.name}`);
+        rippleFx(x, y, '#9dd9ff');
+        playSfx('spell');
         return true;
       }
       if (card.name === '奥能屏障') {
         if (target || terrainAt(x, y) || !inBoard(x, y)) return false;
+        playCardFlight(state.pendingCast && state.pendingCast.handIdx, x, y, 'spell');
         state.terrain[key(x, y)] = { type: 'barrier', ttl: 2, side };
         pushLog(state, `${sideTxt(side)}生成奥能屏障`);
+        rippleFx(x, y, '#ffd58c');
+        playSfx('spell');
         return true;
       }
       if (card.name === '过载核心') {
         if (!target || target.side !== side) return false;
+        playCardFlight(state.pendingCast && state.pendingCast.handIdx, x, y, 'spell');
         target.atk += 1;
         pushLog(state, `${sideTxt(side)}强化 ${target.name} 攻击 +1`);
+        floatingText(x, y, '+1攻', 'heal');
+        playSfx('spell');
         return true;
       }
       if (card.name === '晶核修补') {
         const cp = corePos(side);
         if (x !== cp.x || y !== cp.y) return false;
+        playCardFlight(state.pendingCast && state.pendingCast.handIdx, x, y, 'spell');
         state.players[side].coreHp = Math.min(20, state.players[side].coreHp + 3);
         pushLog(state, `${sideTxt(side)}水晶回复 3`);
+        floatingText(x, y, '+3', 'heal big');
         return true;
       }
       if (card.name === '脉冲地雷') {
         if (target || terrainAt(x, y) || !inBoard(x, y)) return false;
+        playCardFlight(state.pendingCast && state.pendingCast.handIdx, x, y, 'spell');
         state.terrain[key(x, y)] = { type: 'mine', ttl: 3, side };
         pushLog(state, `${sideTxt(side)}部署脉冲地雷`);
+        rippleFx(x, y, '#d8ff8a');
         return true;
       }
     }
@@ -433,7 +456,8 @@
     flashCell(nx, ny, '#b8ff72');
   }
 
-  function hitUnit(attacker, target) {
+  async function hitUnit(attacker, target) {
+    await playAttackAnim(attacker, { x: target.x, y: target.y }, false);
     const dmg = attacker.atk + auraAtkBonus(attacker);
     if (attacker.keywords.includes('穿透')) {
       hitRaw(target, dmg, `${attacker.name}穿透射击`);
@@ -444,7 +468,7 @@
     } else {
       hitRaw(target, dmg, `${attacker.name}攻击${target.name}`);
     }
-    beep(250, 0.05);
+    playSfx('hit');
   }
 
   function hitRaw(target, dmg, logText) {
@@ -455,7 +479,8 @@
       return;
     }
     target.hp -= dmg;
-    flashCell(target.x, target.y, '#ff789e');
+    flashCell(target.x, target.y, '#ff789e', true);
+    floatingText(target.x, target.y, `-${dmg}`, 'dmg');
     pushLog(state, `${logText}，造成 ${dmg}`);
     if (target.hp <= 0) killUnit(target);
   }
@@ -463,6 +488,8 @@
   function killUnit(u) {
     u.alive = false;
     pushLog(state, `${u.name}被击破`);
+    playSfx('death');
+    floatingText(u.x, u.y, '击破', 'dmg big');
     if (u.deathrattle) {
       state.units.filter((a) => a.alive && a.side !== u.side && Math.abs(a.x - u.x) + Math.abs(a.y - u.y) <= 1).forEach((a) => hitRaw(a, 1, `${u.name}亡语震荡`));
     }
@@ -486,7 +513,7 @@
     }
   }
 
-  function aiTurn() {
+  async function aiTurn() {
     if (state.current !== 'red' || state.winner) return;
     const side = 'red';
     const player = state.players.red;
@@ -526,14 +553,15 @@
     }
 
     // 行动阶段：先攻击再移动到中心/前线
-    state.units.filter((u) => u.alive && u.side === side).forEach((u) => {
-      if (u.frozen > 0) return;
+    for (const u of state.units.filter((u) => u.alive && u.side === side)) {
+      if (u.frozen > 0) continue;
       while (u.attacksLeft > 0) {
         const target = attackableTargets(u).sort((a, b) => (a.name.includes('守卫') ? -3 : 0) - (b.name.includes('守卫') ? -3 : 0) + a.hp - b.hp)[0];
         if (target) {
-          hitUnit(u, target); u.attacksLeft -= 1;
+          await hitUnit(u, target); u.attacksLeft -= 1;
         } else if (canAttackCore(u)) {
           const dmg = u.atk + auraAtkBonus(u);
+          await playAttackAnim(u, corePos('blue'), true);
           state.players.blue.coreHp -= dmg;
           pushLog(state, `红方${u.name}攻击蓝方水晶 ${dmg}`);
           u.attacksLeft -= 1;
@@ -549,7 +577,7 @@
           u.x = best.x; u.y = best.y; u.moved = true; checkMine(u);
         }
       }
-    });
+    }
 
     checkWinner();
     renderAll();
@@ -585,7 +613,7 @@
     $('blue-core').textContent = String((s.players && s.players.blue && s.players.blue.coreHp) || 20);
     $('red-core').textContent = String((s.players && s.players.red && s.players.red.coreHp) || 20);
     $('deck-count').textContent = `蓝 ${((s.players&&s.players.blue&&s.players.blue.deck)||[]).length} 张 / 红 ${((s.players&&s.players.red&&s.players.red.deck)||[]).length} 张`;
-    $('status-box').textContent = `当前模式：${s.mode === 'pve' ? 'PVE' : 'PVP'}，AI：${s.difficulty || 'normal'}`;
+    $('status-box').textContent = `当前模式：${s.mode === 'pve' ? 'PVE' : 'PVP'}，AI：${s.difficulty || 'normal'}，动画：${s.animSpeed === 'fast' ? '快速' : '正常'}`;
 
     renderBoard();
     renderHand();
@@ -618,8 +646,8 @@
         if (summonZone('blue', x)) cell.classList.add('spawn-blue');
         if (summonZone('red', x)) cell.classList.add('spawn-red');
         const bCore = corePos('blue'); const rCore = corePos('red');
-        if (x === bCore.x && y === bCore.y) cell.classList.add('crystal-blue');
-        if (x === rCore.x && y === rCore.y) cell.classList.add('crystal-red');
+        if (x === bCore.x && y === bCore.y) { cell.classList.add('crystal-blue'); if (state.players.blue.coreHp <= 8) cell.classList.add('crystal-danger'); }
+        if (x === rCore.x && y === rCore.y) { cell.classList.add('crystal-red'); if (state.players.red.coreHp <= 8) cell.classList.add('crystal-danger'); }
 
         if (moveTargets.some((p) => p.x === x && p.y === y) || attackTargets.some((p) => p.x === x && p.y === y) || castTargets.some((p) => p.x === x && p.y === y)) cell.classList.add('target');
 
@@ -627,9 +655,14 @@
         if (u) {
           const ue = document.createElement('div');
           ue.className = `unit ${u.side}`;
+          if (state.selectedUnit === u.id) ue.classList.add('selected');
           if (u.frozen > 0 || (u.moved && u.attacksLeft <= 0)) ue.classList.add('exhausted');
+          ue.dataset.unitId = u.id;
           ue.textContent = `${u.name.slice(0,2)} ${u.hp}`;
           const bd = document.createElement('span'); bd.className = 'badge'; bd.textContent = `攻${u.atk}`; ue.appendChild(bd);
+          const hp = document.createElement('div'); hp.className = 'hpbar';
+          const fill = document.createElement('div'); fill.className = 'hpfill'; fill.style.width = `${Math.max(0, (u.hp / u.maxHp) * 100)}%`;
+          hp.appendChild(fill); ue.appendChild(hp);
           cell.appendChild(ue);
         }
 
@@ -659,6 +692,7 @@
       const item = document.createElement('button');
       item.type = 'button';
       item.className = 'card';
+      item.dataset.handIdx = String(idx);
       if (p.mana < c.cost) item.classList.add('unplayable');
       item.innerHTML = `<h4>${c.name} [${c.cost}]</h4><div>${c.type}</div><div>${c.desc}</div>`;
       item.onclick = () => playCard(idx);
@@ -729,12 +763,126 @@
   }
   function log(msg) { pushLog(state, msg); }
 
-  function flashCell(x, y, color) {
+  function flashCell(x, y, color, strong) {
     const cell = [...document.querySelectorAll('.cell')][y * W + x];
     if (!cell) return;
     cell.style.boxShadow = `0 0 16px ${color}`;
-    setTimeout(() => { cell.style.boxShadow = ''; }, 150);
+    if (strong) { cell.classList.add('hit-flash'); setTimeout(() => cell.classList.remove('hit-flash'), 120 / speedScale()); }
+    setTimeout(() => { cell.style.boxShadow = ''; }, 150 / speedScale());
   }
+
+  function speedScale() {
+    const m = state && state.animSpeed ? state.animSpeed : 'normal';
+    return FX_SPEED[m] || 1;
+  }
+
+  async function playAttackAnim(attacker, targetPos, crystal) {
+    const ue = document.querySelector(`.unit[data-unit-id="${attacker.id}"]`);
+    if (ue) ue.classList.add('pre-attack');
+    await sleep(70 / speedScale());
+    if (ue) ue.classList.remove('pre-attack');
+    hitStop(crystal ? 110 : 70);
+    await sleep((crystal ? 110 : 70) / speedScale());
+    if (ue) {
+      ue.classList.add('recover');
+      setTimeout(() => ue.classList.remove('recover'), 90 / speedScale());
+    }
+    if (!crystal) {
+      const targetUnit = unitAt(targetPos.x, targetPos.y);
+      const te = targetUnit ? document.querySelector(`.unit[data-unit-id="${targetUnit.id}"]`) : null;
+      if (te) { te.classList.add('hit-shake'); setTimeout(() => te.classList.remove('hit-shake'), 180 / speedScale()); }
+    }
+  }
+
+  function hitStop(ms) {
+    const b = $('board');
+    b.style.transform = 'scale(1.01)';
+    setTimeout(() => { b.style.transform = ''; }, ms / speedScale());
+  }
+
+  function floatingText(x, y, text, cls) {
+    const fx = $('fx-layer');
+    const cell = [...document.querySelectorAll('.cell')][y * W + x];
+    if (!fx || !cell) return;
+    const rect = cell.getBoundingClientRect();
+    const host = fx.getBoundingClientRect();
+    const n = document.createElement('div');
+    n.className = `floating ${cls || ''}`;
+    n.style.left = `${rect.left - host.left + rect.width * 0.35}px`;
+    n.style.top = `${rect.top - host.top + rect.height * 0.28}px`;
+    n.textContent = text;
+    fx.appendChild(n);
+    setTimeout(() => n.remove(), 760 / speedScale());
+  }
+
+  function rippleFx(x, y, color) {
+    const fx = $('fx-layer');
+    const cell = [...document.querySelectorAll('.cell')][y * W + x];
+    if (!fx || !cell) return;
+    const rect = cell.getBoundingClientRect();
+    const host = fx.getBoundingClientRect();
+    const n = document.createElement('div');
+    n.className = 'impact';
+    n.style.borderColor = color;
+    n.style.left = `${rect.left - host.left + rect.width * 0.38}px`;
+    n.style.top = `${rect.top - host.top + rect.height * 0.38}px`;
+    n.style.width = `${rect.width * 0.25}px`;
+    n.style.height = `${rect.width * 0.25}px`;
+    fx.appendChild(n);
+    setTimeout(() => n.remove(), 460 / speedScale());
+  }
+
+  function crystalHitFx(side, dmg) {
+    const p = corePos(side);
+    floatingText(p.x, p.y, `-${dmg}`, 'dmg big');
+    rippleFx(p.x, p.y, '#ff9a6e');
+    const cell = [...document.querySelectorAll('.cell')][p.y * W + p.x];
+    if (cell) {
+      cell.classList.add('hit-flash');
+      setTimeout(() => cell.classList.remove('hit-flash'), 160 / speedScale());
+      const hp = state.players[side].coreHp;
+      if (hp <= 8) cell.classList.add('crystal-danger');
+    }
+  }
+
+  function playCardFlight(handIdx, x, y, type) {
+    const fx = $('fx-layer');
+    const from = document.querySelector(`.card[data-hand-idx="${handIdx}"]`);
+    const to = [...document.querySelectorAll('.cell')][y * W + x];
+    if (!fx || !from || !to) return;
+    const fr = from.getBoundingClientRect();
+    const tr = to.getBoundingClientRect();
+    const hr = fx.getBoundingClientRect();
+    const n = document.createElement('div');
+    n.className = 'trail';
+    n.style.left = `${fr.left - hr.left + fr.width / 2}px`;
+    n.style.top = `${fr.top - hr.top + fr.height / 2}px`;
+    fx.appendChild(n);
+    n.animate([
+      { transform: 'translate(0,0) scale(1)', opacity: 1 },
+      { transform: `translate(${tr.left - fr.left}px,${tr.top - fr.top}px) scale(${type === 'summon' ? 1.6 : 1.2})`, opacity: 0.1 },
+    ], { duration: 220 / speedScale(), easing: 'ease-out' });
+    setTimeout(() => n.remove(), 260 / speedScale());
+  }
+
+  function showTurnBanner(text) {
+    const b = $('turn-banner');
+    if (!b) return;
+    b.textContent = text;
+    b.classList.remove('hidden');
+    setTimeout(() => b.classList.add('hidden'), 900 / speedScale());
+  }
+
+  function playSfx(type) {
+    if (!state || !state.sound) return;
+    const tones = {
+      card: [520, 0.04], summon: [610, 0.05], hit: [260, 0.05], spell: [430, 0.06], crystal: [180, 0.1], death: [120, 0.12], turn: [700, 0.04],
+    };
+    const t = tones[type] || [500, 0.03];
+    beep(t[0], t[1]);
+  }
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   let audioCtx;
   function beep(freq, dur) {
@@ -749,7 +897,7 @@
   function bindMenu() {
     $('start-btn').onclick = () => {
       try {
-        state = initState({ mode: $('mode-select').value, first: $('first-select').value, difficulty: $('difficulty-select').value, sound: $('sound-select').value === 'on' });
+        state = initState({ mode: $('mode-select').value, first: $('first-select').value, difficulty: $('difficulty-select').value, sound: $('sound-select').value === 'on', animSpeed: $('anim-speed-select').value });
         $('runtime-error').classList.add('hidden');
         switchScreen('game-screen');
         renderAll();
@@ -762,16 +910,16 @@
         renderAll();
       }
     };
-    $('rules-btn').onclick = () => $('rules-modal').classList.remove('hidden');
-    $('rules-close').onclick = () => $('rules-modal').classList.add('hidden');
+    $('rules-btn').onclick = () => { playSfx('card'); $('rules-modal').classList.remove('hidden'); };
+    $('rules-close').onclick = () => { $('rules-modal').classList.add('hidden'); playSfx('card'); };
     $('rules-mask').onclick = () => $('rules-modal').classList.add('hidden');
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('rules-modal').classList.add('hidden'); $('result-modal').classList.add('hidden'); } });
 
-    $('end-turn-btn').onclick = endTurn;
+    $('end-turn-btn').onclick = () => { playSfx('turn'); endTurn(); };
     $('restart-btn').onclick = () => $('start-btn').click();
     $('menu-btn').onclick = () => switchScreen('menu-screen');
-    $('move-mode-btn').onclick = () => { state.actionMode = 'move'; hint('移动模式：点高亮格移动。'); renderBoard(); };
-    $('attack-mode-btn').onclick = () => { state.actionMode = 'attack'; hint('攻击模式：点高亮目标攻击。'); renderBoard(); };
+    $('move-mode-btn').onclick = () => { playSfx('card'); state.actionMode = 'move'; hint('移动模式：点高亮格移动。'); renderBoard(); };
+    $('attack-mode-btn').onclick = () => { playSfx('card'); state.actionMode = 'attack'; hint('攻击模式：点高亮目标攻击。'); renderBoard(); };
     $('cancel-mode-btn').onclick = () => { state.actionMode = null; state.pendingCast = null; hint('已取消当前操作。'); renderBoard(); };
     $('result-mask').onclick = () => $('result-modal').classList.add('hidden');
     $('result-restart').onclick = () => { $('result-modal').classList.add('hidden'); $('start-btn').click(); };

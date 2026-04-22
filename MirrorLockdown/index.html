@@ -35,6 +35,9 @@
           <label>音效
             <select id="sound-select"><option value="on">开启</option><option value="off">关闭</option></select>
           </label>
+          <label>动画速度
+            <select id="anim-speed-select"><option value="normal">正常</option><option value="fast">快速</option></select>
+          </label>
         </div>
         <div class="menu-actions">
           <button id="start-btn" class="primary" type="button">开始游戏</button>
@@ -68,6 +71,8 @@
 
         <section class="panel board-wrap">
           <div id="board" class="board"></div>
+          <div id="fx-layer" class="fx-layer"></div>
+          <div id="turn-banner" class="turn-banner hidden"></div>
           <div id="runtime-error" class="runtime-error hidden"></div>
           <div class="action-row">
             <button id="move-mode-btn" type="button">移动模式</button>
