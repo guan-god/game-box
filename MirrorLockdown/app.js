@@ -1,705 +1,632 @@
 (() => {
-  const SIDES = { BLUE: 'blue', RED: 'red' };
-  const UNIT_TEMPLATES = {
-    core: { name: '主核', hp: 4, move: 1, attackRange: 1, damage: 1 },
-    striker: { name: '突击者', hp: 3, move: 2, attackRange: 1, damage: 1 },
-    guard: { name: '守卫者', hp: 4, move: 1, attackRange: 1, damage: 1, armor: 1 },
-    disruptor: { name: '扰乱者', hp: 3, move: 1, attackRange: 1, damage: 1, blockRange: 2 },
+  const SIDES = ['blue', 'red'];
+  const CARDS = [
+    { id: 'move', name: '移动', hint: '移动 1 格' },
+    { id: 'assault', name: '突袭', hint: '相邻造成 1 伤害' },
+    { id: 'dash', name: '冲刺', hint: '移动 2 格，本回合不可突袭' },
+    { id: 'pulse', name: '脉冲', hint: '击退周围 1 格单位' },
+    { id: 'barrier', name: '屏障', hint: '相邻空格生成障碍 1 回合' },
+  ];
+
+  const UNIT_CFG = {
+    core: { name: '核心体', hp: 3, icon: '核' },
+    striker: { name: '突击者', hp: 2, icon: '突' },
+    disruptor: { name: '干扰者', hp: 2, icon: '扰' },
   };
-  const ACTIONS = { MOVE: 'move', ATTACK: 'attack', DEFEND: 'defend', BLOCK: 'block' };
-  const TERRAIN_TYPES = ['energy', 'jam', 'shield'];
-  const EVENT_TYPES = ['centerLock', 'edgeCollapse', 'boostSpawn'];
 
-  const clone = (obj) => JSON.parse(JSON.stringify(obj));
-  const keyOf = (x, y) => `${x},${y}`;
-  const manhattan = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-  const mirrorPos = (pos, size) => ({ x: size - 1 - pos.x, y: size - 1 - pos.y });
-  const randPick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-  function shuffle(arr) {
-    for (let i = arr.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
-  function ringCells(size, ring = 0) {
-    const max = size - 1 - ring;
-    const cells = [];
-    for (let i = ring; i <= max; i += 1) {
-      cells.push({ x: ring, y: i }, { x: max, y: i });
-      if (i !== ring && i !== max) cells.push({ x: i, y: ring }, { x: i, y: max });
-    }
-    return cells;
-  }
+  const $ = (id) => document.getElementById(id);
+  const key = (x, y) => `${x},${y}`;
+  const mht = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+  const clone = (v) => JSON.parse(JSON.stringify(v));
+  const mirror = (p) => ({ x: 5 - p.x, y: 5 - p.y });
 
-  function createGame(config) {
-    const size = Number(config.boardSize || 7);
-    const state = {
-      mode: config.mode,
-      difficulty: config.difficulty,
-      eventsEnabled: config.eventsEnabled,
-      animationSpeed: Number(config.animationSpeed || 1),
-      soundOn: config.soundOn,
-      size,
+  let state = null;
+  let pendingCard = null;
+
+  function makeState(opts) {
+    const units = seedUnits();
+    const terrain = seedSymmetricTerrain(units);
+    return {
+      mode: opts.mode,
+      difficulty: opts.difficulty,
+      soundOn: opts.soundOn,
+      speed: opts.speed,
       turn: 1,
-      phase: SIDES.BLUE,
-      priority: SIDES.BLUE,
+      phase: 'blue',
+      priority: 'blue',
+      selectedUnit: null,
+      logs: [],
       winner: null,
       winnerReason: '',
-      centerControl: { blue: 0, red: 0 },
-      plans: { blue: {}, red: {} },
-      replayLog: null,
-      logs: [],
-      terrain: {},
-      blocked: {},
-      eventCells: {},
-      boostCells: {},
-      units: seedUnits(size),
-      selectedUnitId: null,
-      selectedAction: null,
+      units,
+      terrain,
+      barriers: {},
+      energy: { blue: 0, red: 0 },
+      planned: { blue: [], red: [] },
+      cooldown: { blue: {}, red: {} },
+      stuck: { blue: 0, red: 0 },
+      dashedThisTurn: { blue: {}, red: {} },
     };
-    state.terrain = createSymmetricTerrain(size);
-    return state;
   }
 
-  function seedUnits(size) {
-    const y = Math.floor(size / 2);
+  function seedUnits() {
     const blueBase = [
-      { role: 'core', x: 1, y },
-      { role: 'striker', x: 0, y: y - 1 },
-      { role: 'guard', x: 0, y: y + 1 },
-      { role: 'disruptor', x: 1, y: Math.max(0, y - 2) },
+      { role: 'core', x: 0, y: 2 },
+      { role: 'striker', x: 1, y: 1 },
+      { role: 'disruptor', x: 1, y: 3 },
     ];
     const units = [];
-    blueBase.forEach((b) => {
-      units.push(makeUnit(SIDES.BLUE, b.role, b.x, b.y));
-      const m = mirrorPos({ x: b.x, y: b.y }, size);
-      units.push(makeUnit(SIDES.RED, b.role, m.x, m.y));
+    blueBase.forEach((u) => {
+      units.push({ id: `blue-${u.role}`, side: 'blue', role: u.role, x: u.x, y: u.y, hp: UNIT_CFG[u.role].hp, alive: true });
+      const m = mirror(u);
+      units.push({ id: `red-${u.role}`, side: 'red', role: u.role, x: m.x, y: m.y, hp: UNIT_CFG[u.role].hp, alive: true });
     });
     return units;
   }
 
-  function makeUnit(side, role, x, y) {
-    const tpl = UNIT_TEMPLATES[role];
-    return { id: `${side}-${role}`, side, role, x, y, hp: tpl.hp, defend: false, attackBuff: 0, alive: true };
-  }
-
-  function createSymmetricTerrain(size) {
+  function seedSymmetricTerrain(units) {
     const terrain = {};
-    const types = shuffle([...TERRAIN_TYPES]).slice(0, 2 + Math.floor(Math.random() * 2));
-    const half = [];
-    for (let x = 0; x < size; x += 1) {
-      for (let y = 0; y < size; y += 1) {
-        if (x < (size - 1) / 2 || (x === Math.floor(size / 2) && y <= Math.floor(size / 2))) half.push({ x, y });
-      }
-    }
-    shuffle(half);
-    for (const type of types) {
-      let placed = 0;
-      while (placed < Math.max(3, Math.floor(size / 2)) && half.length) {
-        const cell = half.pop();
-        const mk = keyOf(cell.x, cell.y);
-        const mirrored = mirrorPos(cell, size);
-        const mmk = keyOf(mirrored.x, mirrored.y);
-        if (!terrain[mk] && !terrain[mmk]) {
-          terrain[mk] = type;
-          terrain[mmk] = type;
-          placed += 1;
-        }
+    const blocked = new Set(units.map((u) => key(u.x, u.y)));
+    let pairs = 0;
+    while (pairs < 4) {
+      const x = Math.floor(Math.random() * 3);
+      const y = Math.floor(Math.random() * 6);
+      const a = key(x, y);
+      const m = mirror({ x, y });
+      const b = key(m.x, m.y);
+      const center = (x >= 2 && x <= 3 && y >= 2 && y <= 3) || (m.x >= 2 && m.x <= 3 && m.y >= 2 && m.y <= 3);
+      if (!terrain[a] && !terrain[b] && !blocked.has(a) && !blocked.has(b) && !center) {
+        terrain[a] = 'rock';
+        terrain[b] = 'rock';
+        pairs += 1;
       }
     }
     return terrain;
   }
 
-  const getUnitAt = (state, x, y) => state.units.find((u) => u.alive && u.x === x && u.y === y);
-  const unitsOf = (state, side) => state.units.filter((u) => u.side === side && u.alive);
-
-  function validTargets(state, unit, action) {
-    const out = [];
-    if (!unit || !unit.alive) return out;
-    const tpl = UNIT_TEMPLATES[unit.role];
-    if (action === ACTIONS.MOVE) {
-      for (let x = 0; x < state.size; x += 1) {
-        for (let y = 0; y < state.size; y += 1) {
-          if (manhattan(unit, { x, y }) <= tpl.move && !getUnitAt(state, x, y) && !state.blocked[keyOf(x, y)]) out.push({ x, y });
-        }
-      }
-    }
-    if (action === ACTIONS.ATTACK) {
-      state.units.filter((u) => u.side !== unit.side && u.alive).forEach((enemy) => {
-        if (manhattan(unit, enemy) <= tpl.attackRange) out.push({ x: enemy.x, y: enemy.y });
-      });
-    }
-    if (action === ACTIONS.BLOCK && unit.role === 'disruptor') {
-      for (let x = 0; x < state.size; x += 1) {
-        for (let y = 0; y < state.size; y += 1) {
-          if (manhattan(unit, { x, y }) <= tpl.blockRange && !getUnitAt(state, x, y)) out.push({ x, y });
-        }
-      }
-    }
-    return out;
+  function unitAt(x, y) {
+    return state.units.find((u) => u.alive && u.x === x && u.y === y);
   }
 
-  const setPlan = (state, side, unitId, plan) => { state.plans[side][unitId] = plan; };
-  const clearPlan = (state, side, unitId) => { delete state.plans[side][unitId]; };
-  const allPlanned = (state, side) => unitsOf(state, side).every((u) => !!state.plans[side][u.id]);
-
-  function stepTurn(state) {
-    const snapshot = clone({ units: state.units, terrain: state.terrain, blocked: state.blocked, eventCells: state.eventCells });
-    const logs = [];
-    state.units.forEach((u) => { u.defend = false; });
-
-    [SIDES.BLUE, SIDES.RED].forEach((side) => {
-      Object.entries(state.plans[side]).forEach(([uid, plan]) => {
-        const unit = state.units.find((u) => u.id === uid && u.alive);
-        if (!unit) return;
-        if (plan.action === ACTIONS.DEFEND) { unit.defend = true; logs.push(`${nameOf(unit)}进入防御姿态`); }
-        if (plan.action === ACTIONS.BLOCK && unit.role === 'disruptor' && plan.target) {
-          state.blocked[keyOf(plan.target.x, plan.target.y)] = { by: side, ttl: 1 };
-          logs.push(`${nameOf(unit)}封锁了(${plan.target.x + 1},${plan.target.y + 1})`);
-        }
-      });
-    });
-
-    resolveMoves(state, logs);
-    resolveAttacks(state, logs);
-    applyTerrainAndEvent(state, logs);
-    updateCenterControl(state, logs);
-
-    const winner = detectWinner(state);
-    if (winner) { state.winner = winner.side; state.winnerReason = winner.reason; }
-
-    state.priority = state.priority === SIDES.BLUE ? SIDES.RED : SIDES.BLUE;
-    state.turn += 1;
-    state.phase = SIDES.BLUE;
-    state.plans = { blue: {}, red: {} };
-
-    if (state.eventsEnabled && state.turn % 3 === 0 && !state.winner) triggerEvent(state, logs);
-    else state.eventCells = {};
-
-    state.replayLog = { before: snapshot, after: clone({ units: state.units }), logs };
-    state.logs = logs;
-  }
-
-  function resolveMoves(state, logs) {
-    const intents = [];
-    [SIDES.BLUE, SIDES.RED].forEach((side) => {
-      Object.entries(state.plans[side]).forEach(([uid, plan]) => {
-        const unit = state.units.find((u) => u.id === uid && u.alive);
-        if (unit && plan.action === ACTIONS.MOVE && plan.target) intents.push({ unit, target: plan.target });
-      });
-    });
-
-    const priorityFirst = state.priority;
-    intents.sort((a, b) => (a.unit.side === priorityFirst ? -1 : 1));
-
-    const targetMap = {};
-    intents.forEach((i) => {
-      const k = keyOf(i.target.x, i.target.y);
-      if (!targetMap[k]) targetMap[k] = [];
-      targetMap[k].push(i);
-    });
-
-    Object.values(targetMap).forEach((conflicts) => {
-      if (conflicts.length > 1 && conflicts.some((c) => c.unit.side !== conflicts[0].unit.side)) {
-        conflicts.sort((a, b) => (a.unit.side === priorityFirst ? -1 : 1));
-        const loser = conflicts[1];
-        loser.cancel = true;
-        logs.push(`${nameOf(loser.unit)}移动冲突失败（优先权劣势）`);
-      }
-    });
-
-    intents.forEach((intent) => {
-      if (intent.cancel || !intent.unit.alive) return;
-      const k = keyOf(intent.target.x, intent.target.y);
-      if (state.blocked[k] || getUnitAt(state, intent.target.x, intent.target.y)) return;
-      if (manhattan(intent.unit, intent.target) > UNIT_TEMPLATES[intent.unit.role].move) return;
-      intent.unit.x = intent.target.x;
-      intent.unit.y = intent.target.y;
-      logs.push(`${nameOf(intent.unit)}移动到(${intent.unit.x + 1},${intent.unit.y + 1})`);
-    });
-  }
-
-  function resolveAttacks(state, logs) {
-    const damages = {};
-    [SIDES.BLUE, SIDES.RED].forEach((side) => {
-      Object.entries(state.plans[side]).forEach(([uid, plan]) => {
-        const unit = state.units.find((u) => u.id === uid && u.alive);
-        if (!unit || plan.action !== ACTIONS.ATTACK || !plan.target) return;
-        const target = getUnitAt(state, plan.target.x, plan.target.y);
-        if (!target || target.side === unit.side) return;
-        if (manhattan(unit, target) > UNIT_TEMPLATES[unit.role].attackRange) return;
-        const tk = keyOf(target.x, target.y);
-        let dmg = UNIT_TEMPLATES[unit.role].damage + unit.attackBuff;
-        if (state.terrain[keyOf(unit.x, unit.y)] === 'jam') dmg -= 1;
-        dmg = Math.max(0, dmg);
-        if (dmg > 0) { damages[tk] = (damages[tk] || 0) + dmg; logs.push(`${nameOf(unit)}攻击${nameOf(target)}造成${dmg}点威胁`); }
-        unit.attackBuff = 0;
-      });
-    });
-
-    state.units.filter((u) => u.alive).forEach((unit) => {
-      const tk = keyOf(unit.x, unit.y);
-      if (!damages[tk]) return;
-      let taken = damages[tk];
-      if (UNIT_TEMPLATES[unit.role].armor) taken -= UNIT_TEMPLATES[unit.role].armor;
-      if (unit.defend) taken -= 1;
-      if (state.terrain[tk] === 'shield') taken -= 1;
-      unit.hp -= Math.max(0, taken);
-      logs.push(`${nameOf(unit)}受到${Math.max(0, taken)}点伤害，剩余${Math.max(0, unit.hp)} HP`);
-      if (unit.hp <= 0) { unit.alive = false; logs.push(`${nameOf(unit)}被击破`); }
-    });
-  }
-
-  function applyTerrainAndEvent(state, logs) {
-    state.units.filter((u) => u.alive).forEach((u) => {
-      const t = state.terrain[keyOf(u.x, u.y)];
-      if (t === 'energy') { u.attackBuff = 1; logs.push(`${nameOf(u)}获得能量强化（下次攻击+1）`); }
-      if (state.boostCells[keyOf(u.x, u.y)]) { u.attackBuff = 1; logs.push(`${nameOf(u)}踏入事件增益区`); }
-      if (state.eventCells[keyOf(u.x, u.y)] === 'danger') {
-        u.hp -= 1; logs.push(`${nameOf(u)}受到边缘坍缩伤害`);
-        if (u.hp <= 0) { u.alive = false; logs.push(`${nameOf(u)}在坍缩区被摧毁`); }
-      }
-    });
-    Object.keys(state.blocked).forEach((k) => { state.blocked[k].ttl -= 1; if (state.blocked[k].ttl <= 0) delete state.blocked[k]; });
-  }
-
-  function updateCenterControl(state, logs) {
-    const c0 = Math.floor(state.size / 2) - 1;
-    const c1 = Math.floor(state.size / 2) + 1;
-    let blue = 0;
-    let red = 0;
-    state.units.filter((u) => u.alive).forEach((u) => {
-      if (u.x >= c0 && u.x <= c1 && u.y >= c0 && u.y <= c1) {
-        if (u.side === SIDES.BLUE) blue += 1;
-        else red += 1;
-      }
-    });
-    if (blue > red && blue > 0) { state.centerControl.blue += 1; state.centerControl.red = 0; logs.push('蓝方占领中心区进度 +1'); }
-    else if (red > blue && red > 0) { state.centerControl.red += 1; state.centerControl.blue = 0; logs.push('红方占领中心区进度 +1'); }
-    else { state.centerControl.blue = 0; state.centerControl.red = 0; }
-  }
-
-  function detectWinner(state) {
-    const blueCore = state.units.find((u) => u.id === 'blue-core');
-    const redCore = state.units.find((u) => u.id === 'red-core');
-    if (!blueCore || !blueCore.alive) return { side: SIDES.RED, reason: '击破了蓝方主核' };
-    if (!redCore || !redCore.alive) return { side: SIDES.BLUE, reason: '击破了红方主核' };
-    if (state.centerControl.blue >= 2) return { side: SIDES.BLUE, reason: '连续两回合占领中心区' };
-    if (state.centerControl.red >= 2) return { side: SIDES.RED, reason: '连续两回合占领中心区' };
-    if (!hasEffectiveActions(state, SIDES.BLUE)) return { side: SIDES.RED, reason: '蓝方无有效行动' };
-    if (!hasEffectiveActions(state, SIDES.RED)) return { side: SIDES.BLUE, reason: '红方无有效行动' };
-    return null;
-  }
-
-  function hasEffectiveActions(state, side) {
-    for (const u of unitsOf(state, side)) {
-      if (validTargets(state, u, ACTIONS.MOVE).length) return true;
-      if (validTargets(state, u, ACTIONS.ATTACK).length) return true;
-      if (u.role === 'disruptor' && validTargets(state, u, ACTIONS.BLOCK).length) return true;
-    }
+  function isBlocked(x, y) {
+    if (x < 0 || y < 0 || x > 5 || y > 5) return true;
+    if (state.terrain[key(x, y)] === 'rock') return true;
+    if (state.barriers[key(x, y)]) return true;
     return false;
   }
 
-  function triggerEvent(state, logs) {
-    state.eventCells = {};
-    state.boostCells = {};
-    const event = randPick(EVENT_TYPES);
-    if (event === 'centerLock') {
-      const c = Math.floor(state.size / 2);
-      for (let x = c - 1; x <= c + 1; x += 1) for (let y = c - 1; y <= c + 1; y += 1) state.blocked[keyOf(x, y)] = { by: 'event', ttl: 1 };
-      logs.push('事件：中心封锁（本回合结束后消失）');
-    }
-    if (event === 'edgeCollapse') {
-      ringCells(state.size, 0).forEach((p) => { state.eventCells[keyOf(p.x, p.y)] = 'danger'; });
-      logs.push('事件：边缘坍缩（外圈单位受到1点伤害）');
-    }
-    if (event === 'boostSpawn') {
-      const x = Math.floor(Math.random() * Math.floor(state.size / 2));
-      const y = Math.floor(Math.random() * state.size);
-      const a = { x, y };
-      const b = mirrorPos(a, state.size);
-      state.boostCells[keyOf(a.x, a.y)] = true;
-      state.boostCells[keyOf(b.x, b.y)] = true;
-      logs.push('事件：镜像增益区出现（站上去攻击+1）');
+  function switchScreen(id) {
+    document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
+    $(id).classList.add('active');
+  }
+
+  function openRules() { $('rules-modal').classList.remove('hidden'); }
+  function closeRules() { $('rules-modal').classList.add('hidden'); }
+
+  function showRuntimeError(msg) {
+    const box = $('runtime-error');
+    if (!msg) {
+      box.textContent = '';
+      box.classList.add('hidden');
+    } else {
+      box.textContent = `⚠️ ${msg}`;
+      box.classList.remove('hidden');
     }
   }
 
-  function nameOf(unit) {
-    return `${unit.side === SIDES.BLUE ? '蓝' : '红'}${UNIT_TEMPLATES[unit.role].name}`;
-  }
-
-  function buildAiPlans(state) {
-    const plans = {};
-    unitsOf(state, SIDES.RED).forEach((unit) => { plans[unit.id] = pickAiAction(state, unit, state.difficulty); });
-    return plans;
-  }
-
-  function pickAiAction(state, unit, difficulty) {
-    const attacks = validTargets(state, unit, ACTIONS.ATTACK);
-    const moves = validTargets(state, unit, ACTIONS.MOVE);
-    const blocks = validTargets(state, unit, ACTIONS.BLOCK);
-
-    if (difficulty === 'easy') {
-      if (attacks.length) return { action: ACTIONS.ATTACK, target: randPick(attacks) };
-      const options = [];
-      if (moves.length) options.push({ action: ACTIONS.MOVE, target: randPick(moves) });
-      if (unit.role === 'disruptor' && blocks.length) options.push({ action: ACTIONS.BLOCK, target: randPick(blocks) });
-      options.push({ action: ACTIONS.DEFEND });
-      return randPick(options);
-    }
-
-    const scored = [];
-    attacks.forEach((target) => {
-      const targetUnit = getUnitAt(state, target.x, target.y);
-      let score = 60;
-      if (targetUnit && targetUnit.role === 'core') score += 80;
-      else if (targetUnit && targetUnit.role === 'striker') score += 25;
-      else score += 15;
-      scored.push({ score, plan: { action: ACTIONS.ATTACK, target } });
+  function initMenuEvents() {
+    $('start-btn').onclick = startGame;
+    $('rules-btn').onclick = openRules;
+    $('rules-close').onclick = closeRules;
+    $('rules-mask').onclick = closeRules;
+    $('mode-select').onchange = () => { $('difficulty-wrap').style.display = $('mode-select').value === 'pve' ? 'flex' : 'none'; };
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeRules();
     });
+  }
 
-    moves.forEach((target) => {
-      const c = Math.floor(state.size / 2);
-      const centerBonus = 6 - manhattan(target, { x: c, y: c });
-      const core = state.units.find((u) => u.id === 'blue-core' && u.alive);
-      const coreAggro = core ? (10 - manhattan(target, core)) : 0;
-      let score = 25 + centerBonus + coreAggro;
-      if (difficulty === 'hard') {
-        const foes = unitsOf(state, SIDES.BLUE);
-        const safe = foes.filter((f) => manhattan(target, f) > 1).length;
-        score += safe;
+  function startGame() {
+    closeRules();
+    try {
+      state = makeState({
+        mode: $('mode-select').value,
+        difficulty: $('difficulty-select').value,
+        soundOn: $('sound-select').value === 'on',
+        speed: Number($('speed-range').value),
+      });
+      pendingCard = null;
+      switchScreen('game-screen');
+      bindGameEvents();
+      renderAll();
+      if (!document.querySelector('#board .cell')) {
+        showRuntimeError('棋盘未正确渲染，请刷新页面重试。');
+      } else {
+        showRuntimeError('');
       }
-      scored.push({ score, plan: { action: ACTIONS.MOVE, target } });
-    });
-
-    if (unit.role === 'disruptor') blocks.forEach((target) => scored.push({ score: 30, plan: { action: ACTIONS.BLOCK, target } }));
-    scored.push({ score: 18, plan: { action: ACTIONS.DEFEND } });
-    scored.sort((a, b) => b.score - a.score);
-    return (scored[0] && scored[0].plan) || { action: ACTIONS.DEFEND };
+    } catch (e) {
+      switchScreen('game-screen');
+      showRuntimeError(`启动失败：${e && e.message ? e.message : '未知错误'}`);
+      console.error(e);
+    }
   }
 
-  const roleTag = { core: '核', striker: '突', guard: '卫', disruptor: '扰' };
+  function bindGameEvents() {
+    $('restart-btn').onclick = startGame;
+    $('to-menu-btn').onclick = () => switchScreen('menu-screen');
+    $('confirm-btn').onclick = confirmCurrentSide;
+    $('undo-btn').onclick = undoLast;
+    $('modal-restart').onclick = () => {
+      $('result-modal').classList.add('hidden');
+      startGame();
+    };
+    $('modal-menu').onclick = () => {
+      $('result-modal').classList.add('hidden');
+      switchScreen('menu-screen');
+    };
+    document.querySelectorAll('[data-close="result"]').forEach((n) => {
+      n.onclick = () => $('result-modal').classList.add('hidden');
+    });
+  }
 
-  function bindUI(state, onCellClick, onActionClick, onEndPlan, onReplay, onRestart, onMenu) {
-    const board = document.getElementById('board');
-    board.style.gridTemplateColumns = `repeat(${state.size},1fr)`;
+  function renderAll() {
+    $('turn-label').textContent = String(state.turn);
+    $('priority-label').textContent = state.priority === 'blue' ? '蓝方' : '红方';
+    $('phase-label').textContent = `${state.phase === 'blue' ? '蓝方' : '红方'}选牌`;
+    $('energy-blue').textContent = String(state.energy.blue);
+    $('energy-red').textContent = String(state.energy.red);
+    $('phase-side').textContent = `当前：${state.phase === 'blue' ? '蓝方' : '红方'}`;
+
+    renderBoard();
+    renderCards();
+    renderSelected();
+    renderStatus();
+    renderLogs();
+  }
+
+  function renderBoard() {
+    const board = $('board');
     board.innerHTML = '';
-    for (let x = 0; x < state.size; x += 1) {
-      for (let y = 0; y < state.size; y += 1) {
+    const targets = getTargets();
+    const targetSet = new Set(targets.map((t) => key(t.x, t.y)));
+
+    for (let x = 0; x < 6; x += 1) {
+      for (let y = 0; y < 6; y += 1) {
         const cell = document.createElement('button');
         cell.className = 'cell';
         cell.type = 'button';
         cell.dataset.x = String(x);
         cell.dataset.y = String(y);
+        if (x >= 2 && x <= 3 && y >= 2 && y <= 3) cell.classList.add('center');
+        if (state.terrain[key(x, y)] === 'rock' || state.barriers[key(x, y)]) cell.classList.add('block');
+        if (targetSet.has(key(x, y))) cell.classList.add('target');
         cell.onclick = () => onCellClick(x, y);
+
+        const u = unitAt(x, y);
+        if (u) {
+          const ue = document.createElement('div');
+          ue.className = `unit ${u.side}`;
+          ue.textContent = `${UNIT_CFG[u.role].icon} ${u.hp}`;
+          const bd = document.createElement('span');
+          bd.className = 'badge';
+          bd.textContent = UNIT_CFG[u.role].name;
+          ue.appendChild(bd);
+          cell.appendChild(ue);
+        }
         board.appendChild(cell);
       }
     }
-    document.querySelectorAll('.action-buttons button').forEach((btn) => { btn.type = 'button'; btn.onclick = () => onActionClick(btn.dataset.action); });
-    document.getElementById('end-plan-btn').onclick = onEndPlan;
-    document.getElementById('replay-btn').onclick = onReplay;
-    document.getElementById('restart-btn').onclick = onRestart;
-    document.getElementById('to-menu-btn').onclick = onMenu;
   }
 
-  function render(state) {
-    document.getElementById('turn-label').textContent = String(state.turn);
-    document.getElementById('priority-label').textContent = state.priority === SIDES.BLUE ? '蓝方' : '红方';
-    document.getElementById('phase-label').textContent = state.mode === 'pve' && state.phase === SIDES.RED ? 'AI 规划中' : `${state.phase === SIDES.BLUE ? '蓝' : '红'}方规划`;
+  function renderCards() {
+    const wrap = $('cards-list');
+    wrap.innerHTML = '';
+    const chosen = state.planned[state.phase].map((p) => p.cardId);
 
-    renderBoard(state);
-    renderStatus(state);
-    renderLogs(state);
-
-    const hint = document.getElementById('hint');
-    hint.textContent = allPlanned(state, state.phase) ? `${state.phase === SIDES.BLUE ? '蓝方' : '红方'}已完成，点击确认。` : `请为${state.phase === SIDES.BLUE ? '蓝方' : '红方'}单位设置行动。`;
-    document.getElementById('end-plan-btn').textContent = state.phase === SIDES.BLUE ? '确认蓝方行动' : '确认红方行动';
-  }
-
-  function renderBoard(state) {
-    const center = Math.floor(state.size / 2);
-    const targets = state.selectedUnitId && state.selectedAction ? validTargets(state, state.units.find((u) => u.id === state.selectedUnitId), state.selectedAction) : [];
-    const targetSet = new Set(targets.map((t) => keyOf(t.x, t.y)));
-
-    document.querySelectorAll('.cell').forEach((cell) => {
-      const x = Number(cell.dataset.x);
-      const y = Number(cell.dataset.y);
-      cell.className = 'cell';
-      if (Math.abs(x - center) <= 1 && Math.abs(y - center) <= 1) cell.classList.add('center-zone');
-      if (state.terrain[keyOf(x, y)]) cell.classList.add(`terrain-${state.terrain[keyOf(x, y)]}`);
-      if (state.blocked[keyOf(x, y)]) cell.classList.add('blocked');
-      if (state.eventCells[keyOf(x, y)] === 'danger') cell.classList.add('event-danger');
-      if (state.boostCells[keyOf(x, y)]) cell.classList.add('terrain-energy');
-      if (targetSet.has(keyOf(x, y))) cell.classList.add('target');
-      cell.innerHTML = '';
-      const unit = getUnitAt(state, x, y);
-      if (!unit) return;
-      const u = document.createElement('div');
-      u.className = `unit ${unit.side}`;
-      if (unit.id === state.selectedUnitId) u.classList.add('selected');
-      u.textContent = `${roleTag[unit.role]} ${unit.hp}`;
-      const badge = document.createElement('span');
-      badge.className = 'badge';
-      const plan = state.plans[unit.side][unit.id];
-      badge.textContent = !plan ? '-' : (plan.action === ACTIONS.MOVE ? '移' : plan.action === ACTIONS.ATTACK ? '攻' : plan.action === ACTIONS.DEFEND ? '守' : '锁');
-      u.appendChild(badge);
-      cell.appendChild(u);
+    CARDS.forEach((c) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'card-btn';
+      const cd = state.cooldown[state.phase][c.id] || 0;
+      if (cd > 0) btn.classList.add('cooldown');
+      if (pendingCard === c.id) btn.classList.add('selected');
+      btn.disabled = cd > 0 || chosen.length >= 2;
+      btn.textContent = `${c.name}｜${c.hint}${cd > 0 ? '（冷却）' : ''}`;
+      btn.onclick = () => {
+        pendingCard = c.id;
+        state.selectedUnit = null;
+        hint(`已选择 ${c.name}，请在棋盘选择单位/目标。`);
+        renderBoard();
+        renderCards();
+      };
+      wrap.appendChild(btn);
     });
   }
 
-  function renderStatus(state) {
-    const left = document.getElementById('left-status');
-    left.innerHTML = [SIDES.BLUE, SIDES.RED].map((side) => {
-      const unitsHtml = unitsOf(state, side).map((u) => `<div class="unit-row"><span>${UNIT_TEMPLATES[u.role].name}${u.attackBuff ? '⚡' : ''}</span><span>HP ${u.hp}</span></div>`).join('');
-      return `<div class="status-team"><h4>${side === SIDES.BLUE ? '蓝方' : '红方'}（中心连控:${state.centerControl[side]}/2）</h4>${unitsHtml || '<p>全灭</p>'}</div>`;
-    }).join('');
-    const selected = state.units.find((u) => u.id === state.selectedUnitId);
-    document.getElementById('selected-unit').textContent = selected ? `已选：${selected.side === SIDES.BLUE ? '蓝' : '红'}${UNIT_TEMPLATES[selected.role].name}` : '已选：无';
-  }
-
-  function renderLogs(state) {
-    const list = document.getElementById('log-list');
+  function renderSelected() {
+    const list = $('selected-list');
     list.innerHTML = '';
-    state.logs.slice(-8).forEach((log) => { const li = document.createElement('li'); li.textContent = log; list.appendChild(li); });
-  }
-
-  function switchScreen(id) {
-    document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-  }
-
-  function setRuntimeError(message) {
-    const box = document.getElementById('runtime-error');
-    if (!box) return;
-    if (!message) {
-      box.textContent = '';
-      box.classList.add('hidden');
-      return;
-    }
-    box.textContent = `⚠️ 初始化失败：${message}`;
-    box.classList.remove('hidden');
-  }
-
-  function openRulesModal() {
-    const modal = document.getElementById('rules-modal');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.setAttribute('aria-hidden', 'false');
-  }
-
-  function closeRulesModal() {
-    const modal = document.getElementById('rules-modal');
-    if (!modal) return;
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
-  }
-
-  function showResult(state, onRestart, onMenu) {
-    const modal = document.getElementById('result-modal');
-    modal.classList.remove('hidden');
-    document.getElementById('result-title').textContent = state.winner === SIDES.BLUE ? '蓝方胜利' : '红方胜利';
-    document.getElementById('result-text').textContent = state.winnerReason;
-    document.getElementById('modal-restart-btn').onclick = onRestart;
-    document.getElementById('modal-menu-btn').onclick = onMenu;
-  }
-
-  const hideResult = () => document.getElementById('result-modal').classList.add('hidden');
-
-  let state = null;
-  let pendingAction = null;
-  const $ = (id) => document.getElementById(id);
-
-  function initMenu() {
-    const toRules = () => openRulesModal();
-    const toMenu = () => switchScreen('menu-screen');
-
-    window.__ML_startGame = startGame;
-    window.__ML_toRules = toRules;
-    window.__ML_toMenu = toMenu;
-
-    $('mode-select').onchange = () => { $('difficulty-wrap').style.display = $('mode-select').value === 'pve' ? 'flex' : 'none'; };
-    $('rules-btn').onclick = toRules;
-    $('start-btn').onclick = startGame;
-
-    const rulesCloseBtn = document.getElementById('rules-close-btn');
-    const rulesMask = document.getElementById('rules-mask');
-    if (rulesCloseBtn) rulesCloseBtn.onclick = closeRulesModal;
-    if (rulesMask) rulesMask.onclick = closeRulesModal;
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeRulesModal();
+    state.planned[state.phase].forEach((p, i) => {
+      const li = document.createElement('li');
+      li.textContent = `${i + 1}. ${cardName(p.cardId)} → ${planDesc(p)}`;
+      list.appendChild(li);
     });
   }
 
-  function startGame() {
-    hideResult();
-    closeRulesModal();
-    setRuntimeError('');
-    try {
-      state = createGame({
-        mode: $('mode-select').value,
-        difficulty: $('difficulty-select').value,
-        boardSize: Number($('board-size-select').value),
-        eventsEnabled: $('events-select').value === 'on',
-        animationSpeed: Number($('speed-range').value),
-        soundOn: $('sound-select').value === 'on',
-      });
-      switchScreen('game-screen');
-      bindUI(state, onCellClick, onActionClick, onEndPlan, replayTurn, startGame, () => switchScreen('menu-screen'));
-      render(state);
-      if (!document.querySelector('#board .cell')) {
-        setRuntimeError('棋盘挂载失败：未渲染任何格子。');
-      }
-    } catch (e) {
-      switchScreen('game-screen');
-      setRuntimeError((e && e.message) ? e.message : '未知错误');
-      console.error('Start game failed:', e);
-    }
+  function renderStatus() {
+    const panel = $('status-panel');
+    panel.innerHTML = SIDES.map((side) => {
+      const rows = state.units.filter((u) => u.side === side && u.alive).map((u) => `<div class="unit-row"><span>${UNIT_CFG[u.role].name}</span><span>HP ${u.hp}</span></div>`).join('');
+      const cd = Object.entries(state.cooldown[side]).filter((x) => x[1] > 0).map((x) => cardName(x[0])).join('、') || '无';
+      return `<h4>${side === 'blue' ? '蓝方' : '红方'}（能量 ${state.energy[side]}）</h4>${rows}<p>冷却牌：${cd}</p>`;
+    }).join('<hr/>');
+  }
+
+  function renderLogs() {
+    const box = $('logs');
+    box.innerHTML = '';
+    state.logs.slice(-8).forEach((l) => {
+      const li = document.createElement('li');
+      li.textContent = l;
+      box.appendChild(li);
+    });
+  }
+
+  function planDesc(p) {
+    if (p.target) return `(${p.target.x + 1},${p.target.y + 1})`;
+    return p.unitId || '单位效果';
   }
 
   function onCellClick(x, y) {
-    if (!state || state.winner) return;
-    const unit = state.units.find((u) => u.alive && u.x === x && u.y === y);
-    if (unit && unit.side === state.phase) {
-      state.selectedUnitId = unit.id;
-      state.selectedAction = null;
-      pendingAction = null;
-      render(state);
+    if (!pendingCard) return;
+    const side = state.phase;
+    const cellUnit = unitAt(x, y);
+    if (!state.selectedUnit) {
+      if (!cellUnit || cellUnit.side !== side) return;
+      state.selectedUnit = cellUnit.id;
+      hint(`已选单位 ${UNIT_CFG[cellUnit.role].name}，请选目标格。`);
+      renderBoard();
       return;
     }
-    if (!state.selectedUnitId || !pendingAction) return;
-    const selected = state.units.find((u) => u.id === state.selectedUnitId && u.alive);
-    if (!selected || selected.side !== state.phase) return;
-    const valid = validTargets(state, selected, pendingAction).some((t) => t.x === x && t.y === y);
+
+    const unit = state.units.find((u) => u.id === state.selectedUnit && u.alive);
+    if (!unit) return;
+    const valid = getTargets().some((t) => t.x === x && t.y === y);
     if (!valid) return;
-    setPlan(state, state.phase, selected.id, { action: pendingAction, target: { x, y } });
-    beep(440, 0.06);
-    pendingAction = null;
-    state.selectedAction = null;
-    render(state);
+
+    state.planned[side].push({ cardId: pendingCard, unitId: unit.id, target: { x, y } });
+    beep(420, 0.05);
+    state.selectedUnit = null;
+    pendingCard = null;
+    renderAll();
+    hint(`${side === 'blue' ? '蓝方' : '红方'}已选 ${state.planned[side].length}/2 张牌。`);
   }
 
-  function onActionClick(action) {
-    if (!state || !state.selectedUnitId) return;
-    const unit = state.units.find((u) => u.id === state.selectedUnitId && u.alive);
-    if (!unit || unit.side !== state.phase) return;
-    if (action === 'clear') {
-      clearPlan(state, state.phase, unit.id);
-      pendingAction = null;
-      state.selectedAction = null;
-      render(state);
-      return;
+  function getTargets() {
+    if (!pendingCard || !state.selectedUnit) return [];
+    const unit = state.units.find((u) => u.id === state.selectedUnit && u.alive);
+    if (!unit) return [];
+    const out = [];
+    for (let x = 0; x < 6; x += 1) {
+      for (let y = 0; y < 6; y += 1) {
+        if (isValidPlan(unit, pendingCard, { x, y })) out.push({ x, y });
+      }
     }
-    if (action === ACTIONS.DEFEND) {
-      setPlan(state, state.phase, unit.id, { action: ACTIONS.DEFEND });
-      beep(360, 0.06);
-      render(state);
-      return;
-    }
-    if (action === ACTIONS.BLOCK && unit.role !== 'disruptor') return;
-    pendingAction = action;
-    state.selectedAction = action;
-    render(state);
+    return out;
   }
 
-  async function onEndPlan() {
-    if (!state) return;
-    if (!allPlanned(state, state.phase)) {
-      $('hint').textContent = '该方仍有单位未下达行动。';
-      return;
-    }
-    if (state.mode === 'pvp' && state.phase === SIDES.BLUE) {
-      state.phase = SIDES.RED;
-      state.selectedUnitId = null;
-      pendingAction = null;
-      state.selectedAction = null;
-      render(state);
-      return;
-    }
-    if (state.mode === 'pve' && state.phase === SIDES.BLUE) {
-      state.phase = SIDES.RED;
-      state.plans.red = buildAiPlans(state);
-    }
-    await resolveTurnAnim();
+  function isValidPlan(unit, cardId, target) {
+    const d = mht(unit, target);
+    const occupied = unitAt(target.x, target.y);
+    if (cardId === 'move') return d === 1 && !occupied && !isBlocked(target.x, target.y);
+    if (cardId === 'dash') return d > 0 && d <= 2 && !occupied && !isBlocked(target.x, target.y);
+    if (cardId === 'assault') return d === 1 && occupied && occupied.side !== unit.side;
+    if (cardId === 'pulse') return target.x === unit.x && target.y === unit.y;
+    if (cardId === 'barrier') return d === 1 && !occupied && !isBlocked(target.x, target.y);
+    return false;
   }
 
-  async function resolveTurnAnim() {
-    const before = state.units.map((u) => ({ id: u.id, x: u.x, y: u.y, alive: u.alive }));
-    stepTurn(state);
-    render(state);
+  function undoLast() {
+    const arr = state.planned[state.phase];
+    if (!arr.length) return;
+    arr.pop();
+    renderAll();
+  }
 
-    for (const b of before) {
-      const a = state.units.find((u) => u.id === b.id);
-      if (!a) continue;
-      if (b.alive && !a.alive) beep(160, 0.12);
-      if (b.x !== a.x || b.y !== a.y) {
-        flashCell(a.x, a.y, '#7cf3ff');
-        beep(520, 0.04);
-        await sleep(300 / state.animationSpeed);
+  async function confirmCurrentSide() {
+    if (state.planned[state.phase].length !== 2) {
+      hint('当前方必须选满 2 张牌。');
+      return;
+    }
+
+    if (state.mode === 'pvp' && state.phase === 'blue') {
+      state.phase = 'red';
+      pendingCard = null;
+      state.selectedUnit = null;
+      renderAll();
+      hint('红方请选牌（同屏对战请避开视线）。');
+      return;
+    }
+
+    if (state.mode === 'pve' && state.phase === 'blue') {
+      state.phase = 'red';
+      state.planned.red = buildAiPlans();
+    }
+
+    await resolveTurn();
+    if (!state.winner) {
+      state.phase = 'blue';
+      pendingCard = null;
+      state.selectedUnit = null;
+      renderAll();
+      hint('新回合开始：蓝方选牌。');
+    }
+  }
+
+  async function resolveTurn() {
+    state.dashedThisTurn = { blue: {}, red: {} };
+    state.logs = [];
+
+    for (let slot = 0; slot < 2; slot += 1) {
+      const bluePlan = state.planned.blue[slot];
+      const redPlan = state.planned.red[slot];
+      if (!bluePlan || !redPlan) continue;
+
+      state.logs.push(`翻牌 ${slot + 1}：蓝[${cardName(bluePlan.cardId)}] vs 红[${cardName(redPlan.cardId)}]`);
+      renderLogs();
+      await sleep(180 / state.speed);
+
+      const order = state.priority === 'blue' ? ['blue', 'red'] : ['red', 'blue'];
+      for (const side of order) {
+        const plan = side === 'blue' ? bluePlan : redPlan;
+        applyPlan(side, plan);
+        renderAll();
+        await sleep(220 / state.speed);
       }
     }
 
-    state.logs.forEach((line) => {
-      if (line.includes('攻击')) flashRandom('#ff6ca8');
-      if (line.includes('封锁')) flashRandom('#c799ff');
+    tickBarriers();
+    collectEnergy();
+    updateCooldowns();
+    checkStuck();
+    checkWinner();
+
+    if (!state.winner) {
+      state.turn += 1;
+      state.priority = state.priority === 'blue' ? 'red' : 'blue';
+      state.planned = { blue: [], red: [] };
+    } else {
+      showResult();
+    }
+  }
+
+  function applyPlan(side, plan) {
+    const unit = state.units.find((u) => u.id === plan.unitId && u.alive && u.side === side);
+    if (!unit) {
+      state.logs.push(`${sideText(side)}行动失效（单位不存在）`);
+      return;
+    }
+
+    const target = plan.target;
+    if (plan.cardId === 'move') {
+      if (!isValidPlan(unit, 'move', target)) return;
+      unit.x = target.x; unit.y = target.y;
+      state.logs.push(`${sideText(side)}${UNIT_CFG[unit.role].name}移动`);
+      flash(target.x, target.y, '#7ee5ff');
+      beep(460, 0.03);
+    }
+
+    if (plan.cardId === 'dash') {
+      if (!isValidPlan(unit, 'dash', target)) return;
+      unit.x = target.x; unit.y = target.y;
+      state.dashedThisTurn[side][unit.id] = true;
+      state.logs.push(`${sideText(side)}${UNIT_CFG[unit.role].name}冲刺`);
+      flash(target.x, target.y, '#c9a6ff');
+      beep(520, 0.04);
+    }
+
+    if (plan.cardId === 'assault') {
+      if (state.dashedThisTurn[side][unit.id]) {
+        state.logs.push(`${sideText(side)}突袭失败（该单位本回合已冲刺）`);
+        return;
+      }
+      const enemy = unitAt(target.x, target.y);
+      if (!enemy || enemy.side === side || mht(unit, enemy) !== 1) return;
+      enemy.hp -= 1;
+      state.logs.push(`${sideText(side)}突袭命中 ${sideText(enemy.side)}${UNIT_CFG[enemy.role].name}`);
+      flash(target.x, target.y, '#ff7ea8');
+      beep(260, 0.06);
+      if (enemy.hp <= 0) { enemy.alive = false; state.logs.push(`${sideText(enemy.side)}${UNIT_CFG[enemy.role].name}被击破`); }
+    }
+
+    if (plan.cardId === 'barrier') {
+      if (!isValidPlan(unit, 'barrier', target)) return;
+      state.barriers[key(target.x, target.y)] = 1;
+      state.logs.push(`${sideText(side)}部署屏障`);
+      flash(target.x, target.y, '#ffcb6e');
+    }
+
+    if (plan.cardId === 'pulse') {
+      if (target.x !== unit.x || target.y !== unit.y) return;
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+      dirs.forEach(([dx, dy]) => {
+        const near = unitAt(unit.x + dx, unit.y + dy);
+        if (!near) return;
+        const nx = near.x + dx;
+        const ny = near.y + dy;
+        if (!isBlocked(nx, ny) && !unitAt(nx, ny)) {
+          near.x = nx; near.y = ny;
+          state.logs.push(`${sideText(side)}脉冲击退了${sideText(near.side)}${UNIT_CFG[near.role].name}`);
+          flash(nx, ny, '#9bf26f');
+        }
+      });
+      beep(350, 0.05);
+    }
+  }
+
+  function tickBarriers() {
+    Object.keys(state.barriers).forEach((k) => {
+      state.barriers[k] -= 1;
+      if (state.barriers[k] <= 0) delete state.barriers[k];
     });
+  }
 
-    if (state.winner) {
-      beep(740, 0.2);
-      showResult(state, startGame, () => switchScreen('menu-screen'));
+  function collectEnergy() {
+    let blueIn = 0; let redIn = 0;
+    state.units.filter((u) => u.alive).forEach((u) => {
+      if (u.x >= 2 && u.x <= 3 && u.y >= 2 && u.y <= 3) {
+        if (u.side === 'blue') blueIn += 1; else redIn += 1;
+      }
+    });
+    if (blueIn > redIn && blueIn > 0) { state.energy.blue += 1; state.logs.push('蓝方夺取中心能量 +1'); }
+    if (redIn > blueIn && redIn > 0) { state.energy.red += 1; state.logs.push('红方夺取中心能量 +1'); }
+  }
+
+  function updateCooldowns() {
+    SIDES.forEach((side) => {
+      Object.keys(state.cooldown[side]).forEach((id) => {
+        if (state.cooldown[side][id] > 0) state.cooldown[side][id] -= 1;
+      });
+      state.planned[side].forEach((p) => { state.cooldown[side][p.cardId] = 1; });
+    });
+  }
+
+  function hasAnyValid(side) {
+    const alive = state.units.filter((u) => u.alive && u.side === side);
+    if (!alive.length) return false;
+    for (const u of alive) {
+      for (const c of CARDS) {
+        if (state.cooldown[side][c.id] > 0) continue;
+        for (let x = 0; x < 6; x += 1) for (let y = 0; y < 6; y += 1) if (isValidPlan(u, c.id, { x, y })) return true;
+      }
     }
-    render(state);
+    return false;
   }
 
-  async function replayTurn() {
-    if (!state || !state.replayLog) return;
-    const logs = state.replayLog.logs || [];
-    $('hint').textContent = '正在回放上回合...';
-    for (const l of logs.slice(0, 8)) {
-      $('hint').textContent = `回放：${l}`;
-      if (l.includes('攻击')) flashRandom('#ff6ca8');
-      else if (l.includes('封锁')) flashRandom('#b58fff');
-      else flashRandom('#6ed9ff');
-      await sleep(220 / state.animationSpeed);
+  function checkStuck() {
+    SIDES.forEach((side) => {
+      state.stuck[side] = hasAnyValid(side) ? 0 : state.stuck[side] + 1;
+    });
+  }
+
+  function checkWinner() {
+    const blueCore = state.units.find((u) => u.id === 'blue-core');
+    const redCore = state.units.find((u) => u.id === 'red-core');
+    if (!blueCore.alive) return setWinner('red', '击破蓝方核心体');
+    if (!redCore.alive) return setWinner('blue', '击破红方核心体');
+    if (state.energy.blue >= 3) return setWinner('blue', '累计 3 点中心能量');
+    if (state.energy.red >= 3) return setWinner('red', '累计 3 点中心能量');
+    if (state.stuck.blue >= 1) return setWinner('red', '蓝方连续一回合无有效行动');
+    if (state.stuck.red >= 1) return setWinner('blue', '红方连续一回合无有效行动');
+  }
+
+  function setWinner(side, reason) {
+    state.winner = side;
+    state.winnerReason = reason;
+  }
+
+  function showResult() {
+    $('result-title').textContent = state.winner === 'blue' ? '蓝方胜利' : '红方胜利';
+    $('result-text').textContent = state.winnerReason;
+    $('result-modal').classList.remove('hidden');
+  }
+
+  function buildAiPlans() {
+    const ai = 'red';
+    const plans = [];
+    const used = {};
+    for (let slot = 0; slot < 2; slot += 1) {
+      let best = null;
+      let bestScore = -1e9;
+      const units = state.units.filter((u) => u.alive && u.side === ai);
+      for (const card of CARDS) {
+        if (state.cooldown[ai][card.id] > 0 || used[card.id]) continue;
+        for (const u of units) {
+          for (let x = 0; x < 6; x += 1) {
+            for (let y = 0; y < 6; y += 1) {
+              const target = { x, y };
+              if (!isValidPlan(u, card.id, target)) continue;
+              const score = scoreAiPlan(u, card.id, target);
+              if (score > bestScore) {
+                bestScore = score;
+                best = { cardId: card.id, unitId: u.id, target };
+              }
+            }
+          }
+        }
+      }
+      if (!best) {
+        const fallback = units[0];
+        best = { cardId: 'pulse', unitId: fallback.id, target: { x: fallback.x, y: fallback.y } };
+      }
+      used[best.cardId] = true;
+      plans.push(best);
     }
-    $('hint').textContent = '回放结束。';
+    return plans;
   }
 
-  function flashRandom(color) {
-    const cells = [...document.querySelectorAll('.cell')];
-    const cell = cells[Math.floor(Math.random() * cells.length)];
-    if (!cell) return;
-    cell.style.boxShadow = `0 0 18px ${color}`;
-    setTimeout(() => { cell.style.boxShadow = ''; }, 150);
+  function scoreAiPlan(unit, cardId, target) {
+    const center = { x: 2.5, y: 2.5 };
+    const blueCore = state.units.find((u) => u.id === 'blue-core' && u.alive);
+    const redCore = state.units.find((u) => u.id === 'red-core' && u.alive);
+    let s = 0;
+
+    if (cardId === 'assault') {
+      const enemy = unitAt(target.x, target.y);
+      if (!enemy) return -999;
+      s += enemy.role === 'core' ? 220 : 90;
+      if (enemy.hp === 1) s += 50;
+    }
+
+    if (cardId === 'move' || cardId === 'dash') {
+      s += 16 - (Math.abs(target.x - center.x) + Math.abs(target.y - center.y)) * 2;
+      if (blueCore) s += 8 - mht(target, blueCore);
+      if (redCore && unit.role === 'core') s += mht(target, redCore) * 1.5;
+      if (cardId === 'dash') s += 4;
+    }
+
+    if (cardId === 'barrier') {
+      if (blueCore) s += 10 - mht(target, blueCore) * 1.2;
+      s += (target.x >= 2 && target.x <= 3 && target.y >= 2 && target.y <= 3) ? 8 : 0;
+    }
+
+    if (cardId === 'pulse') {
+      const around = [[1,0],[-1,0],[0,1],[0,-1]];
+      around.forEach(([dx,dy]) => {
+        const e = unitAt(unit.x + dx, unit.y + dy);
+        if (e && e.side === 'blue') s += e.role === 'core' ? 35 : 18;
+      });
+    }
+
+    if (state.difficulty === 'easy') s *= 0.7;
+    if (state.difficulty === 'hard') s *= 1.15;
+    return s;
   }
 
-  function flashCell(x, y, color) {
+  function cardName(id) { return (CARDS.find((c) => c.id === id) || { name: id }).name; }
+  function sideText(s) { return s === 'blue' ? '蓝' : '红'; }
+
+  function hint(text) { $('hint').textContent = text; }
+
+  function flash(x, y, color) {
     const cell = [...document.querySelectorAll('.cell')].find((c) => Number(c.dataset.x) === x && Number(c.dataset.y) === y);
     if (!cell) return;
     cell.style.boxShadow = `0 0 18px ${color}`;
-    setTimeout(() => { cell.style.boxShadow = ''; }, 180);
+    setTimeout(() => { cell.style.boxShadow = ''; }, 120);
   }
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
   let audioCtx;
-  function beep(freq, duration) {
+  function beep(freq, dur) {
     if (!state || !state.soundOn) return;
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      gain.gain.value = 0.02;
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + duration);
-    } catch (e) {
-      // ignore audio errors silently
-    }
+      osc.type = 'triangle'; osc.frequency.value = freq; gain.gain.value = 0.02;
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + dur);
+    } catch (e) {}
   }
 
-  initMenu();
+  initMenuEvents();
 })();
