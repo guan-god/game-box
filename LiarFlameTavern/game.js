@@ -27,11 +27,7 @@
 
   function makeDeck() {
     const deck = [];
-    for (const v of CARD_VALUES) for (let i = 0; i < 10; i++) deck.push({ kind: 'normal', value: v, name: v });
-    for (let i = 0; i < 4; i++) deck.push({ kind: 'wild', value: '*', name: '万用牌' });
-    for (let i = 0; i < 3; i++) deck.push({ kind: 'reverse', value: '↺', name: '反转牌' });
-    for (let i = 0; i < 3; i++) deck.push({ kind: 'peek', value: '👁', name: '透视牌' });
-    for (let i = 0; i < 3; i++) deck.push({ kind: 'smoke', value: '☁', name: '烟雾牌' });
+    for (const v of CARD_VALUES) for (let i = 0; i < 14; i++) deck.push({ kind: 'normal', value: v, name: v });
     return shuffle(deck.map((c, i) => ({ ...c, uid: `${c.kind}_${i}_${Math.random().toString(36).slice(2, 7)}` })));
   }
 
@@ -69,14 +65,13 @@
       players,
       deck,
       discard: [],
-      tablePile: [], // {owner, cards, claim, smoke}
+      tablePile: [], // {owner, cards, claim}
       current: 0,
       target: CARD_VALUES[Math.floor(Math.random() * CARD_VALUES.length)],
       log: ['🎲 赌局开始。'],
       status: '出1~3张牌并宣称为目标牌值。',
       winner: null,
       revealCards: [],
-      smokeCost: 0,
       waitingChallengeFrom: null,
       busy: false,
       passNeeded: mode === 'local'
@@ -233,12 +228,7 @@
   }
 
   function cardDesc(c) {
-    if (c.kind === 'normal') return `普通牌 ${c.value}`;
-    if (c.kind === 'wild') return '可当任意目标值';
-    if (c.kind === 'reverse') return '改变目标值';
-    if (c.kind === 'peek') return '偷看桌面上一组';
-    if (c.kind === 'smoke') return '提高质疑成本';
-    return '';
+    return `普通牌 ${c.value}`;
   }
 
   function renderPendingInline() {
@@ -288,23 +278,11 @@
     selected.forEach(i => player.hand.splice(i, 1));
     app.pending = { selected: [] };
 
-    const hasBluff = cards.some(c => c.kind === 'normal' && c.value !== g.target);
+    const hasBluff = cards.some(c => c.value !== g.target);
     if (hasBluff) player.bluffCount += 1;
 
-    g.tablePile.push({ owner: player.id, cards, claim: g.target, smoke: cards.some(c=>c.kind==='smoke') });
+    g.tablePile.push({ owner: player.id, cards, claim: g.target });
     addLog(`🂠 ${player.name} 盖出 ${cards.length} 张，并宣称全是 ${g.target}`);
-
-    // 处理特殊牌即时效果（反转/透视）
-    if (cards.some(c => c.kind === 'reverse')) {
-      g.target = newRoundTarget(g.target);
-      addLog(`↺ 反转牌触发：目标值改为 ${g.target}`);
-    }
-    if (cards.some(c => c.kind === 'peek')) {
-      const top = g.tablePile[g.tablePile.length - 2];
-      if (top) {
-        g.status = `${player.name} 偷看了上一组盖牌。`;
-      }
-    }
 
     // 下一位决定是否质疑
     g.current = nextAlive(g.players, g.current);
@@ -351,8 +329,7 @@
     if (!liar) challenger.challengeLose += 1;
     else challenger.challengeWin += 1;
 
-    const smoked = last.smoke;
-    await penaltyRoulette(targetPlayer.id, smoked ? 2 : 1);
+    await penaltyRoulette(targetPlayer.id);
 
     // 新轮
     g.tablePile = [];
@@ -389,11 +366,11 @@
     }
   }
 
-  async function penaltyRoulette(playerId, dangerSlots = 1) {
+  async function penaltyRoulette(playerId) {
     const g = app.game;
     const p = g.players[playerId];
     const dangerSet = new Set();
-    while (dangerSet.size < Math.min(5, dangerSlots)) dangerSet.add(Math.floor(Math.random() * 6));
+    while (dangerSet.size < 1) dangerSet.add(Math.floor(Math.random() * 6));
 
     let index = 0;
     app.modal = { type: 'roulette', playerId, index, dangerSet };
@@ -451,7 +428,6 @@
         const owner = g.players[last.owner];
         const persona = PERSONALITIES[p.aiType];
         let chance = persona.challenge + owner.bluffCount * 0.03;
-        if (last.smoke) chance -= 0.12;
         const call = Math.random() < Math.max(0.05, Math.min(0.92, chance));
         if (call) await challengeAi();
         else {
@@ -480,11 +456,11 @@
         render();
         await sleep(120 / app.settings.speed);
       }
-      const liar = last.cards.some(c => c.kind === 'normal' && c.value !== last.claim);
+      const liar = last.cards.some(c => c.value !== last.claim);
       const target = liar ? g.players[last.owner] : p;
       if (liar) p.challengeWin++; else p.challengeLose++;
       addLog(`🧨 ${p.name} 发起质疑：${liar ? '成功' : '失败'}，${target.name} 进轮盘。`);
-      await penaltyRoulette(target.id, last.smoke ? 2 : 1);
+      await penaltyRoulette(target.id);
       g.tablePile = [];
       g.revealCards = [];
       g.target = newRoundTarget(g.target);
@@ -502,17 +478,14 @@
     const count = 1 + Math.floor(Math.random() * 3);
 
     let picked = [];
-    const truthful = p.hand.filter(c => c.kind === 'normal' && c.value === g.target);
-    const wild = p.hand.filter(c => c.kind === 'wild');
-    const others = p.hand.filter(c => !(c.kind === 'normal' && c.value === g.target) && c.kind !== 'wild');
-
-    const willBluff = Math.random() < persona.bluff || truthful.length + wild.length < count;
+    const truthful = p.hand.filter(c => c.value === g.target);
+    const others = p.hand.filter(c => c.value !== g.target);
+    const willBluff = Math.random() < persona.bluff || truthful.length < count;
 
     if (!willBluff) {
-      picked = [...truthful.slice(0, count), ...wild.slice(0, Math.max(0, count - truthful.length))].slice(0, count);
+      picked = truthful.slice(0, count);
     } else {
       picked = [...truthful.slice(0, 1), ...others.slice(0, count - 1)];
-      if (picked.length < count) picked = [...picked, ...wild.slice(0, count - picked.length)];
       p.bluffCount += 1;
     }
 
@@ -524,13 +497,8 @@
       if (i >= 0) p.hand.splice(i, 1);
     });
 
-    g.tablePile.push({ owner: id, cards: picked, claim: g.target, smoke: picked.some(c=>c.kind==='smoke') });
+    g.tablePile.push({ owner: id, cards: picked, claim: g.target });
     addLog(`🂠 ${p.name} 盖出 ${picked.length} 张并宣称 ${g.target}`);
-
-    if (picked.some(c => c.kind === 'reverse')) {
-      g.target = newRoundTarget(g.target);
-      addLog(`↺ 目标被改为 ${g.target}`);
-    }
 
     g.current = nextAlive(g.players, g.current);
     g.waitingChallengeFrom = g.current;
@@ -564,7 +532,7 @@
 
     if (app.modal === 'rules') {
       box.innerHTML = `<button class='modal-close' id='m-close'>✕</button><h2>规则</h2>
-      <ul><li>轮到你时打出1~3张盖牌，并宣称“全是目标值”。</li><li>下家可选择相信或质疑。</li><li>质疑翻牌：说谎者进轮盘，若没说谎则质疑者进轮盘。</li><li>轮盘6格，命中危险格淘汰。</li><li>最后存活者获胜。</li></ul>`;
+      <ul><li>轮到你时打出1~3张盖牌，并宣称“全是目标值”。</li><li>下家可选择相信或质疑。</li><li>质疑翻牌：说谎者进轮盘，若没说谎则质疑者进轮盘。</li><li>轮盘6格，命中危险格淘汰。</li><li>本版本只有 K/Q/A 普通牌，无功能牌干扰。</li><li>最后存活者获胜。</li></ul>`;
       $('m-close').onclick = () => { app.modal = null; render(); };
       return;
     }
