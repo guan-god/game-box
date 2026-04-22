@@ -3,27 +3,39 @@
   const SIDES = ['blue', 'red'];
 
   const CARD_POOL = {
-    iron_guard: { name: '铁壁守卫', type: 'minion', cost: 3, atk: 1, hp: 6, move: 1, range: 1, keywords: ['守卫'], desc: '前排护核盾墙。' },
-    crystal_archer: { name: '水晶弓手', type: 'minion', cost: 3, atk: 2, hp: 3, move: 2, range: 3, keywords: [], desc: '远程稳定输出。' },
-    sky_lancer: { name: '裂空骑兵', type: 'minion', cost: 4, atk: 3, hp: 3, move: 3, range: 1, keywords: ['突袭'], desc: '高机动突入。' },
-    phase_mage: { name: '相位法师', type: 'minion', cost: 4, atk: 2, hp: 3, move: 2, range: 2, keywords: ['亡语'], desc: '登场对周围敌人造成 1 点伤害。' },
-    repair_bot: { name: '修复机仆', type: 'minion', cost: 2, atk: 1, hp: 3, move: 2, range: 1, keywords: [], desc: '登场可治疗友方 2 点。' },
-    guardian_drone: { name: '棱盾无人机', type: 'minion', cost: 2, atk: 1, hp: 2, move: 3, range: 1, keywords: ['飞行','护盾'], desc: '机动骚扰，首伤免疫。' },
-    warp_blade: { name: '折跃刃客', type: 'minion', cost: 5, atk: 4, hp: 4, move: 2, range: 1, keywords: ['冲锋'], desc: '落地即可压制。' },
-    rail_sniper: { name: '贯轨狙击手', type: 'minion', cost: 5, atk: 3, hp: 3, move: 1, range: 4, keywords: ['穿透'], desc: '直线穿透首目标后继续伤害。' },
-    combo_twin: { name: '双脉连击者', type: 'minion', cost: 4, atk: 2, hp: 4, move: 2, range: 1, keywords: ['连击'], desc: '每回合可攻击两次。' },
-    anchor_warden: { name: '锚点守望', type: 'minion', cost: 3, atk: 1, hp: 4, move: 1, range: 1, keywords: ['守卫','光环'], desc: '周围友军 +1 攻击。' },
+    // 随从（12）
+    bulwark_guard: { name: '晶壁守卫', type: 'minion', cost: 3, atk: 1, hp: 6, move: 1, range: 1, keywords: ['守卫'], role: '护脸', desc: '守卫前排，稳住阵线。' },
+    grave_engineer: { name: '墓光工程师', type: 'minion', cost: 2, atk: 2, hp: 2, move: 2, range: 1, keywords: ['亡语'], role: '亡语铺场', deathrattle: 'spawn_shard', desc: '亡语：召唤1/1晶片。' },
+    prism_archer: { name: '棱镜弓手', type: 'minion', cost: 3, atk: 2, hp: 3, move: 2, range: 3, keywords: ['远程'], role: '解场', desc: '远程稳定清场。' },
+    sky_raider: { name: '裂空袭骑', type: 'minion', cost: 4, atk: 3, hp: 3, move: 3, range: 1, keywords: ['突袭'], role: '抢节奏', desc: '召唤回合可打敌方随从。' },
+    warp_executor: { name: '折跃处刑者', type: 'minion', cost: 5, atk: 4, hp: 4, move: 2, range: 1, keywords: ['冲锋'], role: '终结', desc: '召唤回合可直扑水晶。' },
+    phase_sniper: { name: '相位狙击手', type: 'minion', cost: 5, atk: 3, hp: 3, move: 1, range: 4, keywords: ['穿透','远程'], role: '解场', desc: '穿透射线，后排杀手。' },
+    shield_drone: { name: '光盾无人机', type: 'minion', cost: 2, atk: 1, hp: 2, move: 3, range: 1, keywords: ['飞行','圣盾'], role: '反快攻', desc: '高机动首伤免疫。' },
+    stealth_blade: { name: '静默刃客', type: 'minion', cost: 3, atk: 3, hp: 2, move: 3, range: 1, keywords: ['潜行'], role: '刺客', desc: '潜行直到首次攻击。' },
+    blood_reaper: { name: '虹吸收割者', type: 'minion', cost: 4, atk: 3, hp: 4, move: 2, range: 1, keywords: ['吸血'], role: '续航', desc: '造成伤害时回复己方水晶。' },
+    aura_priest: { name: '晶辉祭司', type: 'minion', cost: 3, atk: 1, hp: 4, move: 1, range: 2, keywords: ['光环'], role: '辅助', desc: '相邻友军+1攻击。' },
+    twin_hunter: { name: '双脉猎手', type: 'minion', cost: 4, atk: 2, hp: 4, move: 2, range: 1, keywords: ['连击'], role: '站场', desc: '每回合可攻击两次。' },
+    arc_magus: { name: '奥术法长', type: 'minion', cost: 4, atk: 2, hp: 3, move: 2, range: 2, keywords: ['战吼'], role: '解场', battlecry: 'adjacent_blast', desc: '战吼：对周围敌人造成1。' },
 
-    shockwave: { name: '震荡术', type: 'spell', cost: 2, targeting: 'enemyUnit', desc: '将目标击退 1 格。' },
-    freeze_ray: { name: '冰封术', type: 'spell', cost: 2, targeting: 'enemyUnit', desc: '冻结目标 1 回合。' },
-    arc_barrier: { name: '奥能屏障', type: 'terrain', cost: 2, targeting: 'empty', desc: '生成持续 2 回合障碍。' },
-    overload_core: { name: '过载核心', type: 'spell', cost: 1, targeting: 'allyUnit', desc: '友方单位本局 +1 攻击。' },
-    coin: { name: '幸运币', type: 'spell', cost: 0, targeting: 'none', desc: '本回合 +1 法力。' },
-    pulse_mine: { name: '脉冲地雷', type: 'terrain', cost: 1, targeting: 'empty', desc: '敌方踏入时受 1 伤害。' },
-    draw_sync: { name: '同步抽取', type: 'spell', cost: 2, targeting: 'none', desc: '抽 2 张牌。' },
-    crystal_patch: { name: '晶核修补', type: 'spell', cost: 2, targeting: 'allyCore', desc: '己方水晶回复 3。' },
+    // 法术（8）
+    flare_bolt: { name: '裂焰箭', type: 'spell', cost: 2, targeting: 'enemyAny', role: '直伤', desc: '对单位或水晶造成2伤害。' },
+    freeze_ray: { name: '冰封术', type: 'spell', cost: 2, targeting: 'enemyUnit', role: '控制', desc: '冻结一个单位1回合。' },
+    shockwave: { name: '震荡术', type: 'spell', cost: 2, targeting: 'enemyUnit', role: '控制', desc: '击退目标1格。' },
+    silence_mark: { name: '静默印记', type: 'spell', cost: 1, targeting: 'enemyUnit', role: '解场', desc: '沉默目标并移除关键词。' },
+    blink_swap: { name: '折跃换位', type: 'spell', cost: 2, targeting: 'twoUnits', role: '节奏', desc: '交换两个单位位置。' },
+    arc_barrier: { name: '奥能屏障', type: 'terrain', cost: 2, targeting: 'empty', role: '控制', desc: '封锁格子2回合。' },
+    overload_core: { name: '过载核心', type: 'spell', cost: 1, targeting: 'allyUnit', role: '增益', desc: '友方单位+1攻击并获得冲锋（本回合）。' },
+    draw_sync: { name: '同步过载', type: 'spell', cost: 2, targeting: 'none', role: '过牌', desc: '抽2张牌。' },
+
+    // 秘术（5）
+    sec_guard_echo: { name: '秘术·守门回响', type: 'secret', cost: 2, trigger: 'enemy_attack_core', role: '秘术联动', desc: '触发：敌方攻击水晶时，取消本次攻击并召唤守卫晶片。' },
+    sec_spell_snare: { name: '秘术·法缚网', type: 'secret', cost: 2, trigger: 'enemy_cast_spell', role: '反制', desc: '触发：反制一张敌方法术。' },
+    sec_frost_ring: { name: '秘术·霜环陷域', type: 'secret', cost: 1, trigger: 'enemy_enter_center', role: '控制', desc: '触发：敌方进入中心区时冻结之。' },
+    sec_revenant_wall: { name: '秘术·余烬壁垒', type: 'secret', cost: 2, trigger: 'ally_minion_died', role: '反快攻', desc: '触发：友方随从死亡后在前线召唤守卫。' },
+    sec_heavy_punish: { name: '秘术·超载制裁', type: 'secret', cost: 2, trigger: 'enemy_summon_highcost', role: '反制', desc: '触发：敌方召唤5费+随从时对其造成3伤害并击退。' },
+
+    coin: { name: '幸运币', type: 'spell', cost: 0, targeting: 'none', role: '抢节奏', desc: '本回合 +1 法力。' },
   };
-
   const key = (x, y) => `${x},${y}`;
   const $ = (id) => document.getElementById(id);
   const inBoard = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
@@ -32,8 +44,8 @@
     return {
       board: [],
       players: {
-        blue: { mana: 1, maxMana: 1, deck: [], hand: [], coreHp: 20, heroSkillUsed: false },
-        red: { mana: 1, maxMana: 1, deck: [], hand: [], coreHp: 20, heroSkillUsed: false },
+        blue: { mana: 1, maxMana: 1, deck: [], hand: [], coreHp: 20, heroSkillUsed: false, secrets: [] },
+        red: { mana: 1, maxMana: 1, deck: [], hand: [], coreHp: 20, heroSkillUsed: false, secrets: [] },
       },
       hands: { blue: [], red: [] },
       decks: { blue: [], red: [] },
@@ -62,17 +74,18 @@
   let state = createDefaultState();
   const FX_SPEED = { normal: 1, fast: 1.6 };
 
-  function makeDeck() {
-    return shuffle([
-      'iron_guard','iron_guard','crystal_archer','crystal_archer','sky_lancer','phase_mage','repair_bot','guardian_drone',
-      'warp_blade','rail_sniper','combo_twin','anchor_warden',
-      'shockwave','shockwave','freeze_ray','arc_barrier','overload_core','pulse_mine','draw_sync','crystal_patch'
-    ]);
+  const PRESET_DECKS = {
+    midrange_guard: ['bulwark_guard','bulwark_guard','grave_engineer','grave_engineer','prism_archer','sky_raider','blood_reaper','aura_priest','twin_hunter','arc_magus','flare_bolt','freeze_ray','overload_core','draw_sync','sec_revenant_wall','sec_guard_echo','arc_barrier','warp_executor'],
+    secret_control: ['shield_drone','stealth_blade','phase_sniper','arc_magus','prism_archer','prism_archer','freeze_ray','shockwave','silence_mark','blink_swap','flare_bolt','draw_sync','sec_spell_snare','sec_spell_snare','sec_frost_ring','sec_heavy_punish','arc_barrier','sec_guard_echo']
+  };
+
+  function makeDeck(preset) {
+    return shuffle([...(PRESET_DECKS[preset] || PRESET_DECKS.midrange_guard)]);
   }
 
   function initState(opts) {
-    const blueDeck = makeDeck();
-    const redDeck = makeDeck();
+    const blueDeck = makeDeck('midrange_guard');
+    const redDeck = makeDeck('secret_control');
     const s = {
       ...createDefaultState(),
       mode: opts.mode,
@@ -82,8 +95,8 @@
       turn: 1,
       current: opts.first,
       players: {
-        blue: { mana: 0, maxMana: 0, deck: blueDeck, hand: [], coreHp: 20, heroSkillUsed: false },
-        red: { mana: 0, maxMana: 0, deck: redDeck, hand: [], coreHp: 20, heroSkillUsed: false },
+        blue: { mana: 0, maxMana: 0, deck: blueDeck, hand: [], coreHp: 20, heroSkillUsed: false, secrets: [] },
+        red: { mana: 0, maxMana: 0, deck: redDeck, hand: [], coreHp: 20, heroSkillUsed: false, secrets: [] },
       },
       units: [],
       terrain: seedTerrain(),
@@ -152,6 +165,8 @@
     s.pendingCast = null;
     s.selectedUnit = null;
     s.actionMode = null;
+    s.swapBuffer = null;
+    p.heroSkillUsed = false;
 
     s.units.filter((u) => u.side === side && u.alive).forEach((u) => {
       u.moved = false;
@@ -224,6 +239,7 @@
     return enemies.filter((e) => {
       const inRange = Math.abs(e.x - attacker.x) + Math.abs(e.y - attacker.y) <= attacker.range;
       if (!inRange) return false;
+      if (e.keywords.includes('潜行')) return false;
       if (guards.length && !e.keywords.includes('守卫')) return false;
       if (attacker.justSummonedRushOnly && e.type === 'core') return false;
       return true;
@@ -246,6 +262,17 @@
     const cardId = player.hand[handIdx];
     const card = CARD_POOL[cardId];
     if (!card || player.mana < card.cost) return;
+
+    if (card.type === 'secret') {
+      player.mana -= card.cost;
+      player.hand.splice(handIdx, 1);
+      if (!Array.isArray(player.secrets)) player.secrets = [];
+      player.secrets.push({ id: cardId });
+      pushLog(state, `${sideTxt(side)}埋伏了一张秘术`);
+      playSfx('spell');
+      renderAll();
+      return;
+    }
 
     if (card.type === 'spell' && card.targeting === 'none') {
       castNoTarget(cardId, side);
@@ -308,6 +335,7 @@
       if (dist <= unit.move && canMoveThrough(unit, x, y)) {
         unit.x = x; unit.y = y; unit.moved = true;
         checkMine(unit);
+        if (x >= 2 && x <= 4 && y >= 1 && y <= 3) triggerSecret(side === 'blue' ? 'red' : 'blue', 'enemy_enter_center', { unit });
         pushLog(state, `${sideTxt(side)}${unit.name}移动`);
         beep(460, 0.04);
       }
@@ -325,9 +353,15 @@
       } else {
         const cp = corePos(side === 'blue' ? 'red' : 'blue');
         if (x === cp.x && y === cp.y && canAttackCore(unit)) {
+          const enemySide = side === 'blue' ? 'red' : 'blue';
           const dmg = unit.atk + auraAtkBonus(unit);
           await playAttackAnim(unit, cp, true);
-          state.players[side === 'blue' ? 'red' : 'blue'].coreHp -= dmg;
+          if (!(state.cancelNextCoreAttackFrom && state.cancelNextCoreAttackFrom === side)) {
+            state.players[enemySide].coreHp -= dmg;
+          } else {
+            pushLog(state, `${sideTxt(enemySide)}秘术抵消了本次水晶攻击`);
+            state.cancelNextCoreAttackFrom = null;
+          }
           unit.attacksLeft -= 1;
           pushLog(state, `${sideTxt(side)}${unit.name}攻击敌方水晶 ${dmg} 点`);
           crystalHitFx(side === 'blue' ? 'red' : 'blue', dmg);
@@ -341,6 +375,13 @@
 
   async function resolveCast(card, side, x, y) {
     const target = unitAt(x, y);
+    const enemy = side === 'blue' ? 'red' : 'blue';
+
+    if ((card.type === 'spell' || card.type === 'terrain') && triggerSecret(enemy, 'enemy_cast_spell', { caster: side })) {
+      pushLog(state, `${sideTxt(enemy)}秘术反制了法术`);
+      rippleFx(x, y, '#b38bff');
+      return true;
+    }
 
     if (card.type === 'minion') {
       if (!summonZone(side, x) || y < 0 || y >= H || target || terrainAt(x, y)) return false;
@@ -362,9 +403,10 @@
         attacksLeft: 0,
         justSummoned: true,
         justSummonedRushOnly: card.keywords.includes('突袭') && !card.keywords.includes('冲锋'),
-        shield: card.keywords.includes('护盾'),
+        shield: card.keywords.includes('圣盾'),
         frozen: 0,
-        deathrattle: card.name === '相位法师',
+deathrattle: card.deathrattle || null,
+        battlecry: card.battlecry || null,
       };
       state.units.push(u);
       playCardFlight(state.pendingCast && state.pendingCast.handIdx, x, y, 'summon');
@@ -373,10 +415,39 @@
       rippleFx(x, y, '#8de6ff');
       playSfx('summon');
       onSummonEffect(u, side);
+      if (card.cost >= 5) triggerSecret(enemy, 'enemy_summon_highcost', { unit: u });
       return true;
     }
 
     if (card.type === 'spell' || card.type === 'terrain') {
+      if (card.name === '裂焰箭') {
+        const enemyCore = corePos(side === 'blue' ? 'red' : 'blue');
+        playCardFlight(state.pendingCast && state.pendingCast.handIdx, x, y, 'spell');
+        if (target && target.side !== side) hitRaw(target, 2, '裂焰箭命中');
+        else if (x === enemyCore.x && y === enemyCore.y) { state.players[side === 'blue' ? 'red' : 'blue'].coreHp -= 2; crystalHitFx(side === 'blue' ? 'red' : 'blue', 2); }
+        else return false;
+        playSfx('spell');
+        return true;
+      }
+      if (card.name === '静默印记') {
+        if (!target || target.side === side) return false;
+        target.keywords = []; target.shield = false; target.frozen = 0;
+        pushLog(state, `${target.name}被沉默`);
+        playSfx('spell');
+        return true;
+      }
+      if (card.name === '折跃换位') {
+        if (!target) return false;
+        if (!state.swapBuffer) { state.swapBuffer = { x, y }; hint('选择第二个单位完成换位。'); return false; }
+        const first = unitAt(state.swapBuffer.x, state.swapBuffer.y);
+        const second = target;
+        if (!first || !second || first.id === second.id) { state.swapBuffer = null; return false; }
+        const tx = first.x; const ty = first.y; first.x = second.x; first.y = second.y; second.x = tx; second.y = ty;
+        state.swapBuffer = null;
+        pushLog(state, '折跃换位完成');
+        playSfx('spell');
+        return true;
+      }
       if (card.name === '震荡术') {
         if (!target || target.side === side) return false;
         playCardFlight(state.pendingCast && state.pendingCast.handIdx, x, y, 'spell');
@@ -434,18 +505,8 @@
   }
 
   function onSummonEffect(u, side) {
-    if (u.name === '相位法师') {
-      state.units.filter((e) => e.alive && e.side !== side && Math.abs(e.x - u.x) + Math.abs(e.y - u.y) <= 1).forEach((e) => hitRaw(e, 1, `相位爆裂命中${e.name}`));
-    }
-    if (u.name === '修复机仆') {
-      const target = state.units.find((a) => a.alive && a.side === side && a.hp < a.maxHp);
-      if (target) {
-        target.hp = Math.min(target.maxHp, target.hp + 2);
-        pushLog(state, `${u.name}修复 ${target.name} 2 点`);
-      } else {
-        state.players[side].coreHp = Math.min(20, state.players[side].coreHp + 2);
-        pushLog(state, `${u.name}修复己方水晶 2 点`);
-      }
+    if (u.battlecry === 'adjacent_blast') {
+      state.units.filter((e) => e.alive && e.side !== side && Math.abs(e.x - u.x) + Math.abs(e.y - u.y) <= 1).forEach((e) => hitRaw(e, 1, `战吼爆裂命中${e.name}`));
     }
   }
 
@@ -468,6 +529,11 @@
     } else {
       hitRaw(target, dmg, `${attacker.name}攻击${target.name}`);
     }
+    if (attacker.keywords.includes('吸血')) {
+      state.players[attacker.side].coreHp = Math.min(20, state.players[attacker.side].coreHp + dmg);
+      floatingText(attacker.x, attacker.y, `+${dmg}`, 'heal');
+    }
+    if (attacker.keywords.includes('潜行')) attacker.keywords = attacker.keywords.filter((k) => k !== '潜行');
     playSfx('hit');
   }
 
@@ -490,9 +556,16 @@
     pushLog(state, `${u.name}被击破`);
     playSfx('death');
     floatingText(u.x, u.y, '击破', 'dmg big');
+    if (u.deathrattle === 'spawn_shard') {
+      const nx = Math.min(W - 1, u.x + (u.side === 'blue' ? 1 : -1));
+      if (!unitAt(nx, u.y) && !terrainAt(nx, u.y)) {
+        state.units.push({ id: `${u.side}-shard-${Date.now()}`, side: u.side, name: '晶片', type: 'unit', x: nx, y: u.y, hp: 1, maxHp: 1, atk: 1, move: 1, range: 1, keywords: [], desc: '亡语晶片', alive: true, moved: true, attacksLeft: 0, justSummoned: true, justSummonedRushOnly: false, shield: false, frozen: 0 });
+      }
+    }
     if (u.deathrattle) {
       state.units.filter((a) => a.alive && a.side !== u.side && Math.abs(a.x - u.x) + Math.abs(a.y - u.y) <= 1).forEach((a) => hitRaw(a, 1, `${u.name}亡语震荡`));
     }
+    triggerSecret(u.side, 'ally_minion_died', { x: u.x, y: u.y });
   }
 
   function checkMine(unit) {
@@ -511,6 +584,37 @@
       $('result-text').textContent = `摧毁了${sideTxt(state.winner === 'blue' ? 'red' : 'blue')}方水晶`;
       $('result-modal').classList.remove('hidden');
     }
+  }
+
+
+  function triggerSecret(secretSide, trigger, payload) {
+    const p = state.players[secretSide];
+    if (!p || !Array.isArray(p.secrets) || !p.secrets.length) return false;
+    const idx = p.secrets.findIndex((s) => CARD_POOL[s.id] && CARD_POOL[s.id].trigger === trigger);
+    if (idx < 0) return false;
+    const secret = p.secrets.splice(idx, 1)[0];
+    const sid = secret.id;
+    pushLog(state, `${sideTxt(secretSide)}秘术触发：${CARD_POOL[sid].name}`);
+    playSfx('spell');
+
+    if (sid === 'sec_guard_echo') {
+      const enemy = secretSide === 'blue' ? 'red' : 'blue';
+      const sx = secretSide === 'blue' ? 1 : W - 2;
+      if (!unitAt(sx, 2) && !terrainAt(sx, 2)) {
+        state.units.push({ id: `${secretSide}-echo-${Date.now()}`, side: secretSide, name: '回响守卫', type: 'unit', x: sx, y: 2, hp: 2, maxHp: 2, atk: 1, move: 1, range: 1, keywords: ['守卫'], desc: '秘术召唤', alive: true, moved: true, attacksLeft: 0, justSummoned: true, justSummonedRushOnly: false, shield: false, frozen: 0 });
+      }
+      state.cancelNextCoreAttackFrom = enemy;
+    }
+    if (sid === 'sec_frost_ring' && payload && payload.unit) { payload.unit.frozen = 1; }
+    if (sid === 'sec_revenant_wall') {
+      const sx = secretSide === 'blue' ? 1 : W - 2;
+      const sy = payload && typeof payload.y === 'number' ? payload.y : 2;
+      if (!unitAt(sx, sy) && !terrainAt(sx, sy)) {
+        state.units.push({ id: `${secretSide}-wall-${Date.now()}`, side: secretSide, name: '壁垒晶片', type: 'unit', x: sx, y: sy, hp: 2, maxHp: 2, atk: 1, move: 1, range: 1, keywords: ['守卫'], desc: '秘术产物', alive: true, moved: true, attacksLeft: 0, justSummoned: true, justSummonedRushOnly: false, shield: false, frozen: 0 });
+      }
+    }
+    if (sid === 'sec_heavy_punish' && payload && payload.unit) { hitRaw(payload.unit, 3, '秘术制裁'); pushUnit(payload.unit, secretSide === 'blue' ? -1 : 1, 0); }
+    return true;
   }
 
   async function aiTurn() {
@@ -562,8 +666,13 @@
         } else if (canAttackCore(u)) {
           const dmg = u.atk + auraAtkBonus(u);
           await playAttackAnim(u, corePos('blue'), true);
-          state.players.blue.coreHp -= dmg;
-          pushLog(state, `红方${u.name}攻击蓝方水晶 ${dmg}`);
+          if (!(state.cancelNextCoreAttackFrom && state.cancelNextCoreAttackFrom === 'red')) {
+            state.players.blue.coreHp -= dmg;
+            pushLog(state, `红方${u.name}攻击蓝方水晶 ${dmg}`);
+          } else {
+            pushLog(state, '蓝方秘术抵消了本次水晶攻击');
+            state.cancelNextCoreAttackFrom = null;
+          }
           u.attacksLeft -= 1;
           checkWinner();
           if (state.winner) break;
@@ -575,6 +684,7 @@
         if (steps.length) {
           const best = steps.sort((a, b) => scorePos('red', b.x, b.y) - scorePos('red', a.x, a.y))[0];
           u.x = best.x; u.y = best.y; u.moved = true; checkMine(u);
+          if (u.x >= 2 && u.x <= 4 && u.y >= 1 && u.y <= 3) triggerSecret('blue', 'enemy_enter_center', { unit: u });
         }
       }
     }
@@ -613,7 +723,7 @@
     $('blue-core').textContent = String((s.players && s.players.blue && s.players.blue.coreHp) || 20);
     $('red-core').textContent = String((s.players && s.players.red && s.players.red.coreHp) || 20);
     $('deck-count').textContent = `蓝 ${((s.players&&s.players.blue&&s.players.blue.deck)||[]).length} 张 / 红 ${((s.players&&s.players.red&&s.players.red.deck)||[]).length} 张`;
-    $('status-box').textContent = `当前模式：${s.mode === 'pve' ? 'PVE' : 'PVP'}，AI：${s.difficulty || 'normal'}，动画：${s.animSpeed === 'fast' ? '快速' : '正常'}`;
+$('status-box').textContent = `当前模式：${s.mode === 'pve' ? 'PVE' : 'PVP'}，AI：${s.difficulty || 'normal'}，动画：${s.animSpeed === 'fast' ? '快速' : '正常'}，秘术：蓝${(s.players.blue.secrets||[]).length}/红${(s.players.red.secrets||[]).length}`;
 
     renderBoard();
     renderHand();
@@ -684,7 +794,6 @@
     const handArr = p && p.hand ? p.hand : [];
     if (!handArr.length) {
       $('hand-list').innerHTML = '<div class="card unplayable">当前无手牌</div>';
-      return;
     }
     handArr.forEach((id, idx) => {
       const c = CARD_POOL[id];
@@ -694,17 +803,26 @@
       item.className = 'card';
       item.dataset.handIdx = String(idx);
       if (p.mana < c.cost) item.classList.add('unplayable');
-      item.innerHTML = `<h4>${c.name} [${c.cost}]</h4><div>${c.type}</div><div>${c.desc}</div>`;
+      const k = c.keywords ? `关键词：${c.keywords.join('、')}` : '';
+      item.innerHTML = `<h4>${c.name} [${c.cost}]</h4><div class="type">${c.type === 'minion' ? '随从' : c.type === 'secret' ? '秘术' : '法术'}</div><div class="tag">用途：${c.role || '通用'}</div><div>${c.desc}</div><div class="tag">${k}</div>`;
       item.onclick = () => playCard(idx);
       hand.appendChild(item);
     });
+    const secretZone = $('secret-zone');
+    secretZone.innerHTML = '';
+    const mine = (state.players[side].secrets || []);
+    const enemy = (state.players[side === 'blue' ? 'red' : 'blue'].secrets || []);
+    mine.forEach(() => { const t = document.createElement('div'); t.className = 'secret-token'; t.textContent = '你的秘术'; secretZone.appendChild(t); });
+    enemy.forEach(() => { const t = document.createElement('div'); t.className = 'secret-token'; t.textContent = '敌方未知秘术'; secretZone.appendChild(t); });
+    if (!mine.length && !enemy.length) secretZone.innerHTML = '<div class="secret-token">暂无秘术</div>';
   }
+
 
   function renderDetail() {
     if (!state.selectedUnit) { $('unit-detail').textContent = '未选择单位'; return; }
     const u = state.units.find((x) => x.id === state.selectedUnit && x.alive);
     if (!u) { $('unit-detail').textContent = '未选择单位'; return; }
-    $('unit-detail').innerHTML = `<b>${u.name}</b><br/>ATK ${u.atk} / HP ${u.hp}/${u.maxHp}<br/>移动 ${u.move} / 射程 ${u.range}<br/>关键词：${u.keywords.join('、') || '无'}<br/>状态：${u.frozen>0?'冻结 ':''}${u.shield?'护盾':''}`;
+    $('unit-detail').innerHTML = `<b>${u.name}</b><br/>ATK ${u.atk} / HP ${u.hp}/${u.maxHp}<br/>移动 ${u.move} / 射程 ${u.range}<br/>关键词：${u.keywords.join('、') || '无'}<br/>状态：${u.frozen>0?'冻结 ':''}${u.shield?'圣盾':''}`;
   }
 
   function renderLogs() {
@@ -746,9 +864,14 @@
       for (let y = 0; y < H; y += 1) {
         const u = unitAt(x, y);
         if (c.type === 'minion' && summonZone(side, x) && !u && !terrainAt(x, y)) out.push({ x, y });
-        if (c.targeting === 'enemyUnit' && u && u.side !== side) out.push({ x, y });
+        if (c.targeting === 'enemyUnit' && u && u.side !== side && !u.keywords.includes('潜行')) out.push({ x, y });
+        if (c.targeting === 'enemyAny') {
+          const enemyCore = corePos(side === 'blue' ? 'red' : 'blue');
+          if ((u && u.side !== side && !u.keywords.includes('潜行')) || (x === enemyCore.x && y === enemyCore.y)) out.push({ x, y });
+        }
         if (c.targeting === 'allyUnit' && u && u.side === side) out.push({ x, y });
         if (c.targeting === 'empty' && !u && !terrainAt(x, y)) out.push({ x, y });
+        if (c.targeting === 'twoUnits' && u) out.push({ x, y });
       }
     }
     if (c.targeting === 'allyCore') out.push(corePos(side));
@@ -894,6 +1017,29 @@
     } catch (e) {}
   }
 
+
+  function useHeroSkill() {
+    if (!state || state.winner) return;
+    const side = state.current;
+    const p = state.players[side];
+    if (p.heroSkillUsed || p.mana < 2) { hint('本回合已用技能或法力不足。'); return; }
+    p.mana -= 2;
+    p.heroSkillUsed = true;
+    const core = corePos(side);
+    const enemies = state.units.filter((u) => u.alive && u.side !== side && Math.abs(u.x - core.x) + Math.abs(u.y - core.y) <= 1);
+    if (enemies.length) {
+      enemies.forEach((e) => hitRaw(e, 1, `${sideTxt(side)}水晶技能脉冲`));
+      rippleFx(core.x, core.y, '#8df6ff');
+      pushLog(state, `${sideTxt(side)}发动水晶技能：晶能脉冲`);
+    } else {
+      state.players[side].coreHp = Math.min(20, state.players[side].coreHp + 2);
+      floatingText(core.x, core.y, '+2', 'heal big');
+      pushLog(state, `${sideTxt(side)}发动水晶技能：修复回路`);
+    }
+    playSfx('spell');
+    renderAll();
+  }
+
   function bindMenu() {
     $('start-btn').onclick = () => {
       try {
@@ -915,12 +1061,13 @@
     $('rules-mask').onclick = () => $('rules-modal').classList.add('hidden');
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('rules-modal').classList.add('hidden'); $('result-modal').classList.add('hidden'); } });
 
+$('hero-skill-btn').onclick = useHeroSkill;
     $('end-turn-btn').onclick = () => { playSfx('turn'); endTurn(); };
     $('restart-btn').onclick = () => $('start-btn').click();
     $('menu-btn').onclick = () => switchScreen('menu-screen');
     $('move-mode-btn').onclick = () => { playSfx('card'); state.actionMode = 'move'; hint('移动模式：点高亮格移动。'); renderBoard(); };
     $('attack-mode-btn').onclick = () => { playSfx('card'); state.actionMode = 'attack'; hint('攻击模式：点高亮目标攻击。'); renderBoard(); };
-    $('cancel-mode-btn').onclick = () => { state.actionMode = null; state.pendingCast = null; hint('已取消当前操作。'); renderBoard(); };
+    $('cancel-mode-btn').onclick = () => { state.actionMode = null; state.pendingCast = null; state.swapBuffer = null; hint('已取消当前操作。'); renderBoard(); };
     $('result-mask').onclick = () => $('result-modal').classList.add('hidden');
     $('result-restart').onclick = () => { $('result-modal').classList.add('hidden'); $('start-btn').click(); };
     $('result-menu').onclick = () => { $('result-modal').classList.add('hidden'); switchScreen('menu-screen'); };

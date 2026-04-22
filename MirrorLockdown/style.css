@@ -35,6 +35,11 @@ select,button{background:#0f2150;color:var(--txt);border:1px solid #3a6da9;borde
 
 .action-row{display:flex;gap:8px;flex-wrap:wrap}.runtime-error{width:100%;padding:8px;border:1px solid #ff6f97;background:#4a1c34;border-radius:8px}.hidden{display:none!important}
 .hand-list{display:grid;gap:8px}.card{border:1px solid #3f6aa0;border-radius:10px;background:#0d1c44;padding:8px}.card.unplayable{opacity:.45}.card h4{margin:0 0 4px}
+.card .type{display:inline-block;font-size:11px;padding:2px 6px;border-radius:999px;background:#102a63;border:1px solid #4b74b1}
+.card .tag{font-size:11px;opacity:.85}
+.card.secret{border-color:#b38bff;box-shadow:0 0 10px rgba(179,139,255,.2)}
+.secret-zone{display:flex;gap:6px;flex-wrap:wrap}
+.secret-token{padding:6px 8px;border-radius:8px;border:1px solid #8a6bdb;background:#211b3a;font-size:12px}
 .logs{list-style:none;padding:0;margin:0;display:grid;gap:6px;max-height:250px;overflow:auto}.logs li{font-size:12px;background:#0c1a40;border:1px solid #2f5386;border-radius:8px;padding:6px}
 
 .modal{position:fixed;inset:0;display:grid;place-items:center;background:#0008;z-index:50}.mask{position:absolute;inset:0}.modal.hidden{display:none}.modal-card{position:relative;z-index:1;padding:20px;width:min(92vw,760px)}
