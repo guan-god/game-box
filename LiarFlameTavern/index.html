@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>谎焰酒馆</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <header class="topbar panel">
+      <h1>🍷 谎焰酒馆</h1>
+      <div class="top-controls">
+        <button id="btn-rules" class="btn ghost">规则</button>
+        <button id="btn-settings" class="btn ghost">设置</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="menu-screen" class="screen active"></section>
+      <section id="setup-screen" class="screen"></section>
+      <section id="game-screen" class="screen"></section>
+    </main>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+  <script src="./game.js"></script>
+</body>
+</html>
