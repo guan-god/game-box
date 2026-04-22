@@ -469,6 +469,32 @@
     document.getElementById(id).classList.add('active');
   }
 
+  function setRuntimeError(message) {
+    const box = document.getElementById('runtime-error');
+    if (!box) return;
+    if (!message) {
+      box.textContent = '';
+      box.classList.add('hidden');
+      return;
+    }
+    box.textContent = `⚠️ 初始化失败：${message}`;
+    box.classList.remove('hidden');
+  }
+
+  function openRulesModal() {
+    const modal = document.getElementById('rules-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeRulesModal() {
+    const modal = document.getElementById('rules-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
   function showResult(state, onRestart, onMenu) {
     const modal = document.getElementById('result-modal');
     modal.classList.remove('hidden');
@@ -485,7 +511,7 @@
   const $ = (id) => document.getElementById(id);
 
   function initMenu() {
-    const toRules = () => switchScreen('rules-screen');
+    const toRules = () => openRulesModal();
     const toMenu = () => switchScreen('menu-screen');
 
     window.__ML_startGame = startGame;
@@ -494,23 +520,41 @@
 
     $('mode-select').onchange = () => { $('difficulty-wrap').style.display = $('mode-select').value === 'pve' ? 'flex' : 'none'; };
     $('rules-btn').onclick = toRules;
-    $('back-menu-btn').onclick = toMenu;
     $('start-btn').onclick = startGame;
+
+    const rulesCloseBtn = document.getElementById('rules-close-btn');
+    const rulesMask = document.getElementById('rules-mask');
+    if (rulesCloseBtn) rulesCloseBtn.onclick = closeRulesModal;
+    if (rulesMask) rulesMask.onclick = closeRulesModal;
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeRulesModal();
+    });
   }
 
   function startGame() {
     hideResult();
-    state = createGame({
-      mode: $('mode-select').value,
-      difficulty: $('difficulty-select').value,
-      boardSize: Number($('board-size-select').value),
-      eventsEnabled: $('events-select').value === 'on',
-      animationSpeed: Number($('speed-range').value),
-      soundOn: $('sound-select').value === 'on',
-    });
-    switchScreen('game-screen');
-    bindUI(state, onCellClick, onActionClick, onEndPlan, replayTurn, startGame, () => switchScreen('menu-screen'));
-    render(state);
+    closeRulesModal();
+    setRuntimeError('');
+    try {
+      state = createGame({
+        mode: $('mode-select').value,
+        difficulty: $('difficulty-select').value,
+        boardSize: Number($('board-size-select').value),
+        eventsEnabled: $('events-select').value === 'on',
+        animationSpeed: Number($('speed-range').value),
+        soundOn: $('sound-select').value === 'on',
+      });
+      switchScreen('game-screen');
+      bindUI(state, onCellClick, onActionClick, onEndPlan, replayTurn, startGame, () => switchScreen('menu-screen'));
+      render(state);
+      if (!document.querySelector('#board .cell')) {
+        setRuntimeError('棋盘挂载失败：未渲染任何格子。');
+      }
+    } catch (e) {
+      switchScreen('game-screen');
+      setRuntimeError((e && e.message) ? e.message : '未知错误');
+      console.error('Start game failed:', e);
+    }
   }
 
   function onCellClick(x, y) {
