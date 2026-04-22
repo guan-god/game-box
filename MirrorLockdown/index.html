@@ -3,24 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>双相夺核</title>
+  <title>双相夺核：晶格战线</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <div class="app" id="app">
+  <div class="app">
     <section id="menu-screen" class="screen active menu-screen">
-      <div class="menu-bg"></div>
       <div class="panel menu-panel">
-        <h1>双相夺核</h1>
-        <p>双牌博弈 · 同步结算 · 抢核反转</p>
+        <h1>双相夺核：晶格战线</h1>
+        <p>卡牌构筑节奏 + 棋盘走位博弈</p>
         <div class="menu-grid">
           <label>模式
             <select id="mode-select">
               <option value="pvp">本地 PVP</option>
-              <option value="pve">PVE（对 AI）</option>
+              <option value="pve">PVE 对战 AI</option>
             </select>
           </label>
-          <label id="difficulty-wrap">难度
+          <label>先手
+            <select id="first-select">
+              <option value="blue">蓝方先手</option>
+              <option value="red">红方先手</option>
+            </select>
+          </label>
+          <label>AI 难度
             <select id="difficulty-select">
               <option value="easy">简单</option>
               <option value="normal" selected>普通</option>
@@ -28,13 +33,7 @@
             </select>
           </label>
           <label>音效
-            <select id="sound-select">
-              <option value="on" selected>开启</option>
-              <option value="off">关闭</option>
-            </select>
-          </label>
-          <label>动画速度
-            <input id="speed-range" type="range" min="0.75" max="2" step="0.25" value="1.25" />
+            <select id="sound-select"><option value="on">开启</option><option value="off">关闭</option></select>
           </label>
         </div>
         <div class="menu-actions">
@@ -46,82 +45,73 @@
 
     <section id="game-screen" class="screen">
       <header class="panel topbar">
-        <div>回合：<span id="turn-label">1</span></div>
-        <div>优先权：<span id="priority-label">蓝方</span></div>
-        <div>阶段：<span id="phase-label">蓝方选牌</span></div>
-        <div>中心能量：蓝 <span id="energy-blue">0</span> : <span id="energy-red">0</span> 红</div>
+        <div>回合 <span id="turn-label">1</span></div>
+        <div>当前方：<span id="side-label">蓝方</span></div>
+        <div>法力：<span id="mana-label">1/1</span></div>
+        <div>水晶：蓝 <span id="blue-core">20</span> | 红 <span id="red-core">20</span></div>
         <div class="header-actions">
-          <button id="restart-btn" type="button">重新开始</button>
-          <button id="to-menu-btn" type="button">返回菜单</button>
+          <button id="end-turn-btn" class="primary" type="button">结束回合</button>
+          <button id="restart-btn" type="button">重开</button>
+          <button id="menu-btn" type="button">菜单</button>
         </div>
       </header>
 
       <main class="layout">
-        <aside class="panel side status" id="status-panel"></aside>
+        <aside class="panel info-panel">
+          <h3>单位详情</h3>
+          <div id="unit-detail">未选择单位</div>
+          <h3>提示</h3>
+          <div id="hint">先打出卡牌，再控制单位移动与攻击。</div>
+          <h3>日志</h3>
+          <ul id="logs" class="logs"></ul>
+        </aside>
 
         <section class="panel board-wrap">
           <div id="board" class="board"></div>
           <div id="runtime-error" class="runtime-error hidden"></div>
-          <div id="hint" class="hint">选择两张行动牌并指定目标。</div>
-          <button id="confirm-btn" class="primary" type="button">确认当前方双牌</button>
+          <div class="action-row">
+            <button id="move-mode-btn" type="button">移动模式</button>
+            <button id="attack-mode-btn" type="button">攻击模式</button>
+            <button id="cancel-mode-btn" type="button">取消操作</button>
+          </div>
         </section>
 
-        <aside class="panel side cards">
-          <h3>行动牌（每回合选 2 张）</h3>
-          <div id="phase-side"></div>
-          <div id="cards-list" class="cards-list"></div>
-          <h4>已选</h4>
-          <ol id="selected-list" class="selected-list"></ol>
-          <button id="undo-btn" type="button">撤销最后一张</button>
-          <h4>回合日志</h4>
-          <ul id="logs" class="logs"></ul>
+        <aside class="panel hand-panel">
+          <h3>手牌</h3>
+          <div id="hand-list" class="hand-list"></div>
+          <h3>牌库</h3>
+          <div id="deck-count"></div>
+          <h3>状态</h3>
+          <div id="status-box"></div>
         </aside>
       </main>
     </section>
 
-    <div id="result-modal" class="modal hidden">
-      <div class="mask" data-close="result"></div>
+    <div id="rules-modal" class="modal hidden">
+      <div class="mask" id="rules-mask"></div>
       <div class="panel modal-card">
-        <h2 id="result-title">对局结束</h2>
-        <p id="result-text"></p>
-        <div class="menu-actions">
-          <button id="modal-restart" class="primary" type="button">再来一局</button>
-          <button id="modal-menu" type="button">返回菜单</button>
-        </div>
+        <h2>规则说明（1 分钟）</h2>
+        <ul>
+          <li>目标：将敌方水晶生命降至 0。</li>
+          <li>每回合开始：法力上限 +1（最多 10），法力回满，抽 1 张牌。</li>
+          <li>你可用法力打出随从牌、法术牌、地形/装备牌。</li>
+          <li>随从真实存在于 7x5 棋盘，可移动、卡位、攻击。</li>
+          <li>守卫单位会保护后排目标；飞行可越障；护盾免第一次伤害。</li>
+          <li>后手获得“幸运币”：本回合 +1 临时法力。</li>
+        </ul>
+        <button id="rules-close" class="primary" type="button">关闭</button>
       </div>
     </div>
 
-    <div id="rules-modal" class="modal hidden">
-      <div class="mask" id="rules-mask"></div>
-      <div class="panel modal-card rules-card" role="dialog" aria-modal="true">
-        <h2>《双相夺核》规则</h2>
-        <h3>游戏目标</h3>
-        <ul>
-          <li>击破对方核心体；或</li>
-          <li>中心能量累计达到 3；或</li>
-          <li>让对方连续一回合无有效行动。</li>
-        </ul>
-        <h3>单位</h3>
-        <ul>
-          <li>核心体：被击破即败。</li>
-          <li>突击者：机动最强，抢点主力。</li>
-          <li>干扰者：擅长击退、卡位、打乱节奏。</li>
-        </ul>
-        <h3>每回合流程</h3>
-        <ol>
-          <li>双方各自从 5 张行动牌中秘密选择 2 张并指定目标。</li>
-          <li>同时翻牌，按当前优先权先后结算第 1 张，再结算第 2 张。</li>
-          <li>使用过的牌进入 1 回合冷却，下回合不可再次选择。</li>
-        </ol>
-        <h3>行动牌</h3>
-        <ul>
-          <li>移动：指定单位移动 1 格。</li>
-          <li>突袭：指定相邻敌人造成 1 点伤害。</li>
-          <li>冲刺：移动 2 格，本回合该单位不能突袭。</li>
-          <li>脉冲：将周围 1 格单位击退 1 格。</li>
-          <li>屏障：在相邻空格生成 1 回合障碍。</li>
-        </ul>
-        <button id="rules-close" class="primary" type="button">关闭</button>
+    <div id="result-modal" class="modal hidden">
+      <div class="mask" id="result-mask"></div>
+      <div class="panel modal-card">
+        <h2 id="result-title">胜利</h2>
+        <p id="result-text"></p>
+        <div class="menu-actions">
+          <button id="result-restart" class="primary" type="button">再来一局</button>
+          <button id="result-menu" type="button">回菜单</button>
+        </div>
       </div>
     </div>
   </div>

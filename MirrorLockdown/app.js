@@ -1,98 +1,696 @@
 (() => {
+  const W = 7; const H = 5;
   const SIDES = ['blue', 'red'];
-  const CARDS = [
-    { id: 'move', name: '移动', hint: '移动 1 格' },
-    { id: 'assault', name: '突袭', hint: '相邻造成 1 伤害' },
-    { id: 'dash', name: '冲刺', hint: '移动 2 格，本回合不可突袭' },
-    { id: 'pulse', name: '脉冲', hint: '击退周围 1 格单位' },
-    { id: 'barrier', name: '屏障', hint: '相邻空格生成障碍 1 回合' },
-  ];
 
-  const UNIT_CFG = {
-    core: { name: '核心体', hp: 3, icon: '核' },
-    striker: { name: '突击者', hp: 2, icon: '突' },
-    disruptor: { name: '干扰者', hp: 2, icon: '扰' },
+  const CARD_POOL = {
+    iron_guard: { name: '铁壁守卫', type: 'minion', cost: 3, atk: 1, hp: 6, move: 1, range: 1, keywords: ['守卫'], desc: '前排护核盾墙。' },
+    crystal_archer: { name: '水晶弓手', type: 'minion', cost: 3, atk: 2, hp: 3, move: 2, range: 3, keywords: [], desc: '远程稳定输出。' },
+    sky_lancer: { name: '裂空骑兵', type: 'minion', cost: 4, atk: 3, hp: 3, move: 3, range: 1, keywords: ['突袭'], desc: '高机动突入。' },
+    phase_mage: { name: '相位法师', type: 'minion', cost: 4, atk: 2, hp: 3, move: 2, range: 2, keywords: ['亡语'], desc: '登场对周围敌人造成 1 点伤害。' },
+    repair_bot: { name: '修复机仆', type: 'minion', cost: 2, atk: 1, hp: 3, move: 2, range: 1, keywords: [], desc: '登场可治疗友方 2 点。' },
+    guardian_drone: { name: '棱盾无人机', type: 'minion', cost: 2, atk: 1, hp: 2, move: 3, range: 1, keywords: ['飞行','护盾'], desc: '机动骚扰，首伤免疫。' },
+    warp_blade: { name: '折跃刃客', type: 'minion', cost: 5, atk: 4, hp: 4, move: 2, range: 1, keywords: ['冲锋'], desc: '落地即可压制。' },
+    rail_sniper: { name: '贯轨狙击手', type: 'minion', cost: 5, atk: 3, hp: 3, move: 1, range: 4, keywords: ['穿透'], desc: '直线穿透首目标后继续伤害。' },
+    combo_twin: { name: '双脉连击者', type: 'minion', cost: 4, atk: 2, hp: 4, move: 2, range: 1, keywords: ['连击'], desc: '每回合可攻击两次。' },
+    anchor_warden: { name: '锚点守望', type: 'minion', cost: 3, atk: 1, hp: 4, move: 1, range: 1, keywords: ['守卫','光环'], desc: '周围友军 +1 攻击。' },
+
+    shockwave: { name: '震荡术', type: 'spell', cost: 2, targeting: 'enemyUnit', desc: '将目标击退 1 格。' },
+    freeze_ray: { name: '冰封术', type: 'spell', cost: 2, targeting: 'enemyUnit', desc: '冻结目标 1 回合。' },
+    arc_barrier: { name: '奥能屏障', type: 'terrain', cost: 2, targeting: 'empty', desc: '生成持续 2 回合障碍。' },
+    overload_core: { name: '过载核心', type: 'spell', cost: 1, targeting: 'allyUnit', desc: '友方单位本局 +1 攻击。' },
+    coin: { name: '幸运币', type: 'spell', cost: 0, targeting: 'none', desc: '本回合 +1 法力。' },
+    pulse_mine: { name: '脉冲地雷', type: 'terrain', cost: 1, targeting: 'empty', desc: '敌方踏入时受 1 伤害。' },
+    draw_sync: { name: '同步抽取', type: 'spell', cost: 2, targeting: 'none', desc: '抽 2 张牌。' },
+    crystal_patch: { name: '晶核修补', type: 'spell', cost: 2, targeting: 'allyCore', desc: '己方水晶回复 3。' },
   };
 
-  const $ = (id) => document.getElementById(id);
   const key = (x, y) => `${x},${y}`;
-  const mht = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-  const clone = (v) => JSON.parse(JSON.stringify(v));
-  const mirror = (p) => ({ x: 5 - p.x, y: 5 - p.y });
+  const $ = (id) => document.getElementById(id);
+  const inBoard = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
 
   let state = null;
-  let pendingCard = null;
 
-  function makeState(opts) {
-    const units = seedUnits();
-    const terrain = seedSymmetricTerrain(units);
-    return {
+  function makeDeck() {
+    return shuffle([
+      'iron_guard','iron_guard','crystal_archer','crystal_archer','sky_lancer','phase_mage','repair_bot','guardian_drone',
+      'warp_blade','rail_sniper','combo_twin','anchor_warden',
+      'shockwave','shockwave','freeze_ray','arc_barrier','overload_core','pulse_mine','draw_sync','crystal_patch'
+    ]);
+  }
+
+  function initState(opts) {
+    const blueDeck = makeDeck();
+    const redDeck = makeDeck();
+    const s = {
       mode: opts.mode,
       difficulty: opts.difficulty,
-      soundOn: opts.soundOn,
-      speed: opts.speed,
+      sound: opts.sound,
       turn: 1,
-      phase: 'blue',
-      priority: 'blue',
+      current: opts.first,
+      players: {
+        blue: { mana: 0, maxMana: 0, deck: blueDeck, hand: [], coreHp: 20, heroSkillUsed: false },
+        red: { mana: 0, maxMana: 0, deck: redDeck, hand: [], coreHp: 20, heroSkillUsed: false },
+      },
+      units: [],
+      terrain: seedTerrain(),
+      pendingCast: null,
       selectedUnit: null,
+      actionMode: null,
       logs: [],
       winner: null,
-      winnerReason: '',
-      units,
-      terrain,
-      barriers: {},
-      energy: { blue: 0, red: 0 },
-      planned: { blue: [], red: [] },
-      cooldown: { blue: {}, red: {} },
-      stuck: { blue: 0, red: 0 },
-      dashedThisTurn: { blue: {}, red: {} },
     };
+    for (let i = 0; i < 4; i += 1) { drawCard(s, 'blue', 1); drawCard(s, 'red', 1); }
+    const second = opts.first === 'blue' ? 'red' : 'blue';
+    s.players[second].hand.push('coin');
+    startTurn(s, s.current, true);
+    return s;
   }
 
-  function seedUnits() {
-    const blueBase = [
-      { role: 'core', x: 0, y: 2 },
-      { role: 'striker', x: 1, y: 1 },
-      { role: 'disruptor', x: 1, y: 3 },
-    ];
-    const units = [];
-    blueBase.forEach((u) => {
-      units.push({ id: `blue-${u.role}`, side: 'blue', role: u.role, x: u.x, y: u.y, hp: UNIT_CFG[u.role].hp, alive: true });
-      const m = mirror(u);
-      units.push({ id: `red-${u.role}`, side: 'red', role: u.role, x: m.x, y: m.y, hp: UNIT_CFG[u.role].hp, alive: true });
-    });
-    return units;
-  }
-
-  function seedSymmetricTerrain(units) {
-    const terrain = {};
-    const blocked = new Set(units.map((u) => key(u.x, u.y)));
+  function seedTerrain() {
+    const t = {};
     let pairs = 0;
-    while (pairs < 4) {
-      const x = Math.floor(Math.random() * 3);
-      const y = Math.floor(Math.random() * 6);
+    while (pairs < 3) {
+      const x = 1 + Math.floor(Math.random() * 2);
+      const y = Math.floor(Math.random() * H);
       const a = key(x, y);
-      const m = mirror({ x, y });
-      const b = key(m.x, m.y);
-      const center = (x >= 2 && x <= 3 && y >= 2 && y <= 3) || (m.x >= 2 && m.x <= 3 && m.y >= 2 && m.y <= 3);
-      if (!terrain[a] && !terrain[b] && !blocked.has(a) && !blocked.has(b) && !center) {
-        terrain[a] = 'rock';
-        terrain[b] = 'rock';
+      const b = key(W - 1 - x, y);
+      if (!t[a] && !t[b] && !(x === 1 && y === 2) && !(W - 1 - x === 5 && y === 2)) {
+        t[a] = { type: 'rock', ttl: 99, side: null };
+        t[b] = { type: 'rock', ttl: 99, side: null };
         pairs += 1;
       }
     }
-    return terrain;
+    return t;
   }
 
-  function unitAt(x, y) {
-    return state.units.find((u) => u.alive && u.x === x && u.y === y);
+  function shuffle(arr) { for (let i = arr.length - 1; i > 0; i -= 1) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+  function sideTxt(s) { return s === 'blue' ? '蓝' : '红'; }
+
+  function drawCard(s, side, n) {
+    for (let i = 0; i < n; i += 1) {
+      const p = s.players[side];
+      if (p.deck.length) p.hand.push(p.deck.shift());
+    }
   }
 
-  function isBlocked(x, y) {
-    if (x < 0 || y < 0 || x > 5 || y > 5) return true;
-    if (state.terrain[key(x, y)] === 'rock') return true;
-    if (state.barriers[key(x, y)]) return true;
+  function startTurn(s, side, initial) {
+    const p = s.players[side];
+    if (!initial) p.maxMana = Math.min(10, p.maxMana + 1);
+    if (initial && p.maxMana === 0) p.maxMana = 1;
+    p.mana = p.maxMana;
+    drawCard(s, side, 1);
+    s.pendingCast = null;
+    s.selectedUnit = null;
+    s.actionMode = null;
+
+    s.units.filter((u) => u.side === side && u.alive).forEach((u) => {
+      u.moved = false;
+      u.frozen = Math.max(0, (u.frozen || 0) - 1);
+      u.summonSick = u.summonSick ? 0 : 0;
+      const baseAtkCount = u.keywords.includes('连击') ? 2 : 1;
+      u.attacksLeft = baseAtkCount;
+      if (u.justSummoned) {
+        const canAct = u.keywords.includes('冲锋') || u.keywords.includes('突袭');
+        if (!canAct) u.attacksLeft = 0;
+        if (!u.keywords.includes('冲锋')) u.moved = true;
+        u.justSummoned = false;
+      }
+    });
+
+    log(`${sideTxt(side)}方回合开始：法力 ${p.mana}/${p.maxMana}`);
+  }
+
+  function endTurn() {
+    if (state.winner) return;
+    tickTerrain();
+    const next = state.current === 'blue' ? 'red' : 'blue';
+    if (state.current === 'red') state.turn += 1;
+    state.current = next;
+    startTurn(state, next, false);
+    renderAll();
+    if (state.mode === 'pve' && state.current === 'red' && !state.winner) {
+      setTimeout(aiTurn, 300);
+    }
+  }
+
+  function tickTerrain() {
+    Object.keys(state.terrain).forEach((k) => {
+      const t = state.terrain[k];
+      if (t.ttl < 90) {
+        t.ttl -= 1;
+        if (t.ttl <= 0) delete state.terrain[k];
+      }
+    });
+  }
+
+  function summonZone(side, x) { return side === 'blue' ? x === 1 : x === W - 2; }
+  function unitAt(x, y) { return state.units.find((u) => u.alive && u.x === x && u.y === y); }
+  function terrainAt(x, y) { return state.terrain[key(x, y)]; }
+
+  function canMoveThrough(unit, x, y) {
+    if (!inBoard(x, y)) return false;
+    if (unit.keywords.includes('飞行')) return !unitAt(x, y);
+    const t = terrainAt(x, y);
+    if (t && (t.type === 'rock' || t.type === 'barrier')) return false;
+    return !unitAt(x, y);
+  }
+
+  function auraAtkBonus(unit) {
+    let bonus = 0;
+    state.units.filter((u) => u.alive && u.side === unit.side && u.keywords.includes('光环')).forEach((a) => {
+      if (Math.abs(a.x - unit.x) + Math.abs(a.y - unit.y) <= 1 && a.id !== unit.id) bonus += 1;
+    });
+    return bonus;
+  }
+
+  function attackableTargets(attacker) {
+    const enemySide = attacker.side === 'blue' ? 'red' : 'blue';
+    const guards = state.units.filter((u) => u.alive && u.side === enemySide && u.keywords.includes('守卫'));
+    const enemies = state.units.filter((u) => u.alive && u.side === enemySide);
+    return enemies.filter((e) => {
+      const inRange = Math.abs(e.x - attacker.x) + Math.abs(e.y - attacker.y) <= attacker.range;
+      if (!inRange) return false;
+      if (guards.length && !e.keywords.includes('守卫')) return false;
+      if (attacker.justSummonedRushOnly && e.type === 'core') return false;
+      return true;
+    });
+  }
+
+  function corePos(side) { return side === 'blue' ? { x: 0, y: 2 } : { x: W - 1, y: 2 }; }
+
+  function canAttackCore(attacker) {
+    const enemy = attacker.side === 'blue' ? 'red' : 'blue';
+    if (state.units.some((u) => u.alive && u.side === enemy && u.keywords.includes('守卫'))) return false;
+    if (attacker.justSummonedRushOnly) return false;
+    const cp = corePos(enemy);
+    return Math.abs(cp.x - attacker.x) + Math.abs(cp.y - attacker.y) <= attacker.range;
+  }
+
+  function playCard(handIdx) {
+    const side = state.current;
+    const player = state.players[side];
+    const cardId = player.hand[handIdx];
+    const card = CARD_POOL[cardId];
+    if (!card || player.mana < card.cost) return;
+
+    if (card.type === 'spell' && card.targeting === 'none') {
+      castNoTarget(cardId, side);
+      player.hand.splice(handIdx, 1);
+      player.mana -= card.cost;
+      renderAll();
+      return;
+    }
+
+    state.pendingCast = { handIdx, cardId, side };
+    state.selectedUnit = null;
+    state.actionMode = null;
+    hint(`选择目标：${card.name}`);
+    renderBoard();
+  }
+
+  function castNoTarget(cardId, side) {
+    if (cardId === 'coin') {
+      state.players[side].mana += 1;
+      log(`${sideTxt(side)}使用幸运币，法力 +1`);
+      beep(520, 0.05);
+    }
+    if (cardId === 'draw_sync') {
+      drawCard(state, side, 2);
+      log(`${sideTxt(side)}抽 2 张牌`);
+    }
+  }
+
+  function onBoardClick(x, y) {
+    const side = state.current;
+    const player = state.players[side];
+
+    if (state.pendingCast && state.pendingCast.side === side) {
+      const card = CARD_POOL[state.pendingCast.cardId];
+      if (player.mana < card.cost) return;
+      if (!resolveCast(card, side, x, y)) return;
+      player.mana -= card.cost;
+      player.hand.splice(state.pendingCast.handIdx, 1);
+      state.pendingCast = null;
+      renderAll();
+      return;
+    }
+
+    const u = unitAt(x, y);
+    if (u && u.side === side) {
+      state.selectedUnit = u.id;
+      hint(`选中 ${u.name}，可进行移动/攻击。`);
+      renderAll();
+      return;
+    }
+
+    if (!state.selectedUnit) return;
+    const unit = state.units.find((it) => it.id === state.selectedUnit && it.alive);
+    if (!unit || unit.side !== side) return;
+
+    if (state.actionMode === 'move') {
+      if (unit.moved || unit.frozen > 0) return;
+      const dist = Math.abs(unit.x - x) + Math.abs(unit.y - y);
+      if (dist <= unit.move && canMoveThrough(unit, x, y)) {
+        unit.x = x; unit.y = y; unit.moved = true;
+        checkMine(unit);
+        log(`${sideTxt(side)}${unit.name}移动`);
+        beep(460, 0.04);
+      }
+      renderAll();
+    }
+
+    if (state.actionMode === 'attack' && unit.attacksLeft > 0) {
+      const target = unitAt(x, y);
+      if (target && target.side !== side) {
+        if (attackableTargets(unit).some((t) => t.id === target.id)) {
+          hitUnit(unit, target);
+          unit.attacksLeft -= 1;
+          renderAll();
+        }
+      } else {
+        const cp = corePos(side === 'blue' ? 'red' : 'blue');
+        if (x === cp.x && y === cp.y && canAttackCore(unit)) {
+          const dmg = unit.atk + auraAtkBonus(unit);
+          state.players[side === 'blue' ? 'red' : 'blue'].coreHp -= dmg;
+          unit.attacksLeft -= 1;
+          log(`${sideTxt(side)}${unit.name}攻击敌方水晶 ${dmg} 点`);
+          flashCell(x, y, '#ff9f5b');
+          beep(230, 0.07);
+          checkWinner();
+          renderAll();
+        }
+      }
+    }
+  }
+
+  function resolveCast(card, side, x, y) {
+    const target = unitAt(x, y);
+
+    if (card.type === 'minion') {
+      if (!summonZone(side, x) || y < 0 || y >= H || target || terrainAt(x, y)) return false;
+      const u = {
+        id: `${side}-${Date.now()}-${Math.random()}`,
+        side,
+        name: card.name,
+        type: 'unit',
+        x, y,
+        hp: card.hp,
+        maxHp: card.hp,
+        atk: card.atk,
+        move: card.move,
+        range: card.range,
+        keywords: [...card.keywords],
+        desc: card.desc,
+        alive: true,
+        moved: true,
+        attacksLeft: 0,
+        justSummoned: true,
+        justSummonedRushOnly: card.keywords.includes('突袭') && !card.keywords.includes('冲锋'),
+        shield: card.keywords.includes('护盾'),
+        frozen: 0,
+        deathrattle: card.name === '相位法师',
+      };
+      state.units.push(u);
+      log(`${sideTxt(side)}召唤 ${card.name}`);
+      flashCell(x, y, '#7ecbff');
+      beep(530, 0.05);
+      onSummonEffect(u, side);
+      return true;
+    }
+
+    if (card.type === 'spell' || card.type === 'terrain') {
+      if (card.name === '震荡术') {
+        if (!target || target.side === side) return false;
+        pushUnit(target, side === 'blue' ? 1 : -1, 0);
+        log(`${sideTxt(side)}施放震荡术`);
+        return true;
+      }
+      if (card.name === '冰封术') {
+        if (!target || target.side === side) return false;
+        target.frozen = 1;
+        log(`${sideTxt(side)}冰封 ${target.name}`);
+        return true;
+      }
+      if (card.name === '奥能屏障') {
+        if (target || terrainAt(x, y) || !inBoard(x, y)) return false;
+        state.terrain[key(x, y)] = { type: 'barrier', ttl: 2, side };
+        log(`${sideTxt(side)}生成奥能屏障`);
+        return true;
+      }
+      if (card.name === '过载核心') {
+        if (!target || target.side !== side) return false;
+        target.atk += 1;
+        log(`${sideTxt(side)}强化 ${target.name} 攻击 +1`);
+        return true;
+      }
+      if (card.name === '晶核修补') {
+        const cp = corePos(side);
+        if (x !== cp.x || y !== cp.y) return false;
+        state.players[side].coreHp = Math.min(20, state.players[side].coreHp + 3);
+        log(`${sideTxt(side)}水晶回复 3`);
+        return true;
+      }
+      if (card.name === '脉冲地雷') {
+        if (target || terrainAt(x, y) || !inBoard(x, y)) return false;
+        state.terrain[key(x, y)] = { type: 'mine', ttl: 3, side };
+        log(`${sideTxt(side)}部署脉冲地雷`);
+        return true;
+      }
+    }
     return false;
+  }
+
+  function onSummonEffect(u, side) {
+    if (u.name === '相位法师') {
+      state.units.filter((e) => e.alive && e.side !== side && Math.abs(e.x - u.x) + Math.abs(e.y - u.y) <= 1).forEach((e) => hitRaw(e, 1, `相位爆裂命中${e.name}`));
+    }
+    if (u.name === '修复机仆') {
+      const target = state.units.find((a) => a.alive && a.side === side && a.hp < a.maxHp);
+      if (target) {
+        target.hp = Math.min(target.maxHp, target.hp + 2);
+        log(`${u.name}修复 ${target.name} 2 点`);
+      } else {
+        state.players[side].coreHp = Math.min(20, state.players[side].coreHp + 2);
+        log(`${u.name}修复己方水晶 2 点`);
+      }
+    }
+  }
+
+  function pushUnit(u, dx, dy) {
+    const nx = u.x + dx; const ny = u.y + dy;
+    if (!inBoard(nx, ny) || unitAt(nx, ny) || terrainAt(nx, ny)) return;
+    u.x = nx; u.y = ny;
+    flashCell(nx, ny, '#b8ff72');
+  }
+
+  function hitUnit(attacker, target) {
+    const dmg = attacker.atk + auraAtkBonus(attacker);
+    if (attacker.keywords.includes('穿透')) {
+      hitRaw(target, dmg, `${attacker.name}穿透射击`);
+      const dirX = Math.sign(target.x - attacker.x); const dirY = Math.sign(target.y - attacker.y);
+      const nx = target.x + dirX; const ny = target.y + dirY;
+      const second = unitAt(nx, ny);
+      if (second && second.side !== attacker.side) hitRaw(second, Math.max(1, dmg - 1), `${attacker.name}穿透余波`);
+    } else {
+      hitRaw(target, dmg, `${attacker.name}攻击${target.name}`);
+    }
+    beep(250, 0.05);
+  }
+
+  function hitRaw(target, dmg, logText) {
+    if (!target.alive) return;
+    if (target.shield) {
+      target.shield = false;
+      log(`${target.name}护盾抵消伤害`);
+      return;
+    }
+    target.hp -= dmg;
+    flashCell(target.x, target.y, '#ff789e');
+    log(`${logText}，造成 ${dmg}`);
+    if (target.hp <= 0) killUnit(target);
+  }
+
+  function killUnit(u) {
+    u.alive = false;
+    log(`${u.name}被击破`);
+    if (u.deathrattle) {
+      state.units.filter((a) => a.alive && a.side !== u.side && Math.abs(a.x - u.x) + Math.abs(a.y - u.y) <= 1).forEach((a) => hitRaw(a, 1, `${u.name}亡语震荡`));
+    }
+  }
+
+  function checkMine(unit) {
+    const t = terrainAt(unit.x, unit.y);
+    if (t && t.type === 'mine' && t.side !== unit.side) {
+      delete state.terrain[key(unit.x, unit.y)];
+      hitRaw(unit, 1, `${unit.name}触发脉冲地雷`);
+    }
+  }
+
+  function checkWinner() {
+    if (state.players.blue.coreHp <= 0) state.winner = 'red';
+    if (state.players.red.coreHp <= 0) state.winner = 'blue';
+    if (state.winner) {
+      $('result-title').textContent = `${sideTxt(state.winner)}方胜利`;
+      $('result-text').textContent = `摧毁了${sideTxt(state.winner === 'blue' ? 'red' : 'blue')}方水晶`;
+      $('result-modal').classList.remove('hidden');
+    }
+  }
+
+  function aiTurn() {
+    if (state.current !== 'red' || state.winner) return;
+    const side = 'red';
+    const player = state.players.red;
+
+    // 出牌阶段：优先曲线、击杀、抢位
+    let safety = 0;
+    while (safety < 20) {
+      safety += 1;
+      const playable = player.hand.map((id, i) => ({ id, i, card: CARD_POOL[id] })).filter((c) => c.card && c.card.cost <= player.mana);
+      if (!playable.length) break;
+      let acted = false;
+
+      // 优先法术击杀
+      const shock = playable.find((c) => c.id === 'shockwave');
+      if (shock) {
+        const target = state.units.find((u) => u.alive && u.side === 'blue' && (u.name.includes('守卫') || u.hp <= 2));
+        if (target) {
+          state.pendingCast = { handIdx: shock.i, cardId: shock.id, side };
+          resolveCast(CARD_POOL.shockwave, side, target.x, target.y);
+          player.hand.splice(shock.i, 1); player.mana -= CARD_POOL.shockwave.cost; acted = true;
+        }
+      }
+
+      if (!acted) {
+        const summon = playable.filter((c) => c.card.type === 'minion').sort((a, b) => b.card.cost - a.card.cost)[0];
+        if (summon) {
+          const pos = findSummonPos(side);
+          if (pos) {
+            state.pendingCast = { handIdx: summon.i, cardId: summon.id, side };
+            resolveCast(summon.card, side, pos.x, pos.y);
+            player.hand.splice(summon.i, 1); player.mana -= summon.card.cost; acted = true;
+          }
+        }
+      }
+
+      if (!acted) break;
+    }
+
+    // 行动阶段：先攻击再移动到中心/前线
+    state.units.filter((u) => u.alive && u.side === side).forEach((u) => {
+      if (u.frozen > 0) return;
+      while (u.attacksLeft > 0) {
+        const target = attackableTargets(u).sort((a, b) => (a.name.includes('守卫') ? -3 : 0) - (b.name.includes('守卫') ? -3 : 0) + a.hp - b.hp)[0];
+        if (target) {
+          hitUnit(u, target); u.attacksLeft -= 1;
+        } else if (canAttackCore(u)) {
+          const dmg = u.atk + auraAtkBonus(u);
+          state.players.blue.coreHp -= dmg;
+          log(`红方${u.name}攻击蓝方水晶 ${dmg}`);
+          u.attacksLeft -= 1;
+          checkWinner();
+          if (state.winner) break;
+        } else break;
+      }
+
+      if (!u.moved && u.frozen <= 0) {
+        const steps = neighborCells(u.x, u.y).filter((c) => canMoveThrough(u, c.x, c.y));
+        if (steps.length) {
+          const best = steps.sort((a, b) => scorePos('red', b.x, b.y) - scorePos('red', a.x, a.y))[0];
+          u.x = best.x; u.y = best.y; u.moved = true; checkMine(u);
+        }
+      }
+    });
+
+    checkWinner();
+    renderAll();
+    if (!state.winner) setTimeout(endTurn, 350);
+  }
+
+  function scorePos(side, x, y) {
+    const enemyCore = corePos(side === 'blue' ? 'red' : 'blue');
+    return -Math.abs(enemyCore.x - x) - Math.abs(enemyCore.y - y) + (x >= 2 && x <= 4 ? 1.5 : 0);
+  }
+
+  function findSummonPos(side) {
+    const col = side === 'blue' ? 1 : W - 2;
+    const cells = [];
+    for (let y = 0; y < H; y += 1) {
+      if (!unitAt(col, y) && !terrainAt(col, y)) cells.push({ x: col, y });
+    }
+    return cells[0] || null;
+  }
+
+  function neighborCells(x, y) {
+    return [{ x: x + 1, y }, { x: x - 1, y }, { x, y: y + 1 }, { x, y: y - 1 }].filter((c) => inBoard(c.x, c.y));
+  }
+
+  function renderAll() {
+    $('turn-label').textContent = String(state.turn);
+    $('side-label').textContent = `${sideTxt(state.current)}方`;
+    $('mana-label').textContent = `${state.players[state.current].mana}/${state.players[state.current].maxMana}`;
+    $('blue-core').textContent = String(state.players.blue.coreHp);
+    $('red-core').textContent = String(state.players.red.coreHp);
+    $('deck-count').textContent = `蓝 ${state.players.blue.deck.length} 张 / 红 ${state.players.red.deck.length} 张`;
+    $('status-box').textContent = `当前模式：${state.mode === 'pve' ? 'PVE' : 'PVP'}，AI：${state.difficulty}`;
+
+    renderBoard();
+    renderHand();
+    renderDetail();
+    renderLogs();
+  }
+
+  function renderBoard() {
+    const board = $('board');
+    board.innerHTML = '';
+    const moveTargets = getMoveTargets();
+    const attackTargets = getAttackTargets();
+    const castTargets = getCastTargets();
+
+    for (let y = 0; y < H; y += 1) {
+      for (let x = 0; x < W; x += 1) {
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'cell';
+        const t = terrainAt(x, y);
+        if (t && (t.type === 'rock' || t.type === 'barrier')) cell.classList.add('obstacle');
+        if (summonZone('blue', x)) cell.classList.add('spawn-blue');
+        if (summonZone('red', x)) cell.classList.add('spawn-red');
+        const bCore = corePos('blue'); const rCore = corePos('red');
+        if (x === bCore.x && y === bCore.y) cell.classList.add('crystal-blue');
+        if (x === rCore.x && y === rCore.y) cell.classList.add('crystal-red');
+
+        if (moveTargets.some((p) => p.x === x && p.y === y) || attackTargets.some((p) => p.x === x && p.y === y) || castTargets.some((p) => p.x === x && p.y === y)) cell.classList.add('target');
+
+        const u = unitAt(x, y);
+        if (u) {
+          const ue = document.createElement('div');
+          ue.className = `unit ${u.side}`;
+          if (u.frozen > 0 || (u.moved && u.attacksLeft <= 0)) ue.classList.add('exhausted');
+          ue.textContent = `${u.name.slice(0,2)} ${u.hp}`;
+          const bd = document.createElement('span'); bd.className = 'badge'; bd.textContent = `攻${u.atk}`; ue.appendChild(bd);
+          cell.appendChild(ue);
+        }
+
+        cell.onclick = () => onBoardClick(x, y);
+        board.appendChild(cell);
+      }
+    }
+  }
+
+  function renderHand() {
+    const side = state.current;
+    const p = state.players[side];
+    const hand = $('hand-list');
+    hand.innerHTML = '';
+    p.hand.forEach((id, idx) => {
+      const c = CARD_POOL[id];
+      if (!c) return;
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'card';
+      if (p.mana < c.cost) item.classList.add('unplayable');
+      item.innerHTML = `<h4>${c.name} [${c.cost}]</h4><div>${c.type}</div><div>${c.desc}</div>`;
+      item.onclick = () => playCard(idx);
+      hand.appendChild(item);
+    });
+  }
+
+  function renderDetail() {
+    if (!state.selectedUnit) { $('unit-detail').textContent = '未选择单位'; return; }
+    const u = state.units.find((x) => x.id === state.selectedUnit && x.alive);
+    if (!u) { $('unit-detail').textContent = '未选择单位'; return; }
+    $('unit-detail').innerHTML = `<b>${u.name}</b><br/>ATK ${u.atk} / HP ${u.hp}/${u.maxHp}<br/>移动 ${u.move} / 射程 ${u.range}<br/>关键词：${u.keywords.join('、') || '无'}<br/>状态：${u.frozen>0?'冻结 ':''}${u.shield?'护盾':''}`;
+  }
+
+  function renderLogs() {
+    const ul = $('logs'); ul.innerHTML = '';
+    state.logs.slice(-9).forEach((l) => { const li = document.createElement('li'); li.textContent = l; ul.appendChild(li); });
+  }
+
+  function getMoveTargets() {
+    if (state.actionMode !== 'move' || !state.selectedUnit) return [];
+    const u = state.units.find((x) => x.id === state.selectedUnit && x.alive);
+    if (!u || u.side !== state.current || u.moved || u.frozen > 0) return [];
+    const out = [];
+    for (let x = 0; x < W; x += 1) for (let y = 0; y < H; y += 1) if (Math.abs(u.x - x) + Math.abs(u.y - y) <= u.move && canMoveThrough(u, x, y)) out.push({ x, y });
+    return out;
+  }
+
+  function getAttackTargets() {
+    if (state.actionMode !== 'attack' || !state.selectedUnit) return [];
+    const u = state.units.find((x) => x.id === state.selectedUnit && x.alive);
+    if (!u || u.side !== state.current || u.attacksLeft <= 0 || u.frozen > 0) return [];
+    const arr = attackableTargets(u).map((t) => ({ x: t.x, y: t.y }));
+    if (canAttackCore(u)) arr.push(corePos(u.side === 'blue' ? 'red' : 'blue'));
+    return arr;
+  }
+
+  function getCastTargets() {
+    if (!state.pendingCast) return [];
+    const c = CARD_POOL[state.pendingCast.cardId];
+    const side = state.pendingCast.side;
+    const out = [];
+    for (let x = 0; x < W; x += 1) {
+      for (let y = 0; y < H; y += 1) {
+        const u = unitAt(x, y);
+        if (c.type === 'minion' && summonZone(side, x) && !u && !terrainAt(x, y)) out.push({ x, y });
+        if (c.targeting === 'enemyUnit' && u && u.side !== side) out.push({ x, y });
+        if (c.targeting === 'allyUnit' && u && u.side === side) out.push({ x, y });
+        if (c.targeting === 'empty' && !u && !terrainAt(x, y)) out.push({ x, y });
+      }
+    }
+    if (c.targeting === 'allyCore') out.push(corePos(side));
+    return out;
+  }
+
+  function hint(msg) { $('hint').textContent = msg; }
+  function log(msg) { state.logs.push(msg); }
+
+  function flashCell(x, y, color) {
+    const cell = [...document.querySelectorAll('.cell')][y * W + x];
+    if (!cell) return;
+    cell.style.boxShadow = `0 0 16px ${color}`;
+    setTimeout(() => { cell.style.boxShadow = ''; }, 150);
+  }
+
+  let audioCtx;
+  function beep(freq, dur) {
+    if (!state || !state.sound) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+      o.type = 'triangle'; o.frequency.value = freq; g.gain.value = 0.02; o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + dur);
+    } catch (e) {}
+  }
+
+  function bindMenu() {
+    $('start-btn').onclick = () => {
+      try {
+        state = initState({ mode: $('mode-select').value, first: $('first-select').value, difficulty: $('difficulty-select').value, sound: $('sound-select').value === 'on' });
+        $('runtime-error').classList.add('hidden');
+        switchScreen('game-screen');
+        renderAll();
+        if (state.mode === 'pve' && state.current === 'red') setTimeout(aiTurn, 300);
+      } catch (e) {
+        switchScreen('game-screen');
+        $('runtime-error').classList.remove('hidden');
+        $('runtime-error').textContent = `初始化失败：${e.message || e}`;
+      }
+    };
+    $('rules-btn').onclick = () => $('rules-modal').classList.remove('hidden');
+    $('rules-close').onclick = () => $('rules-modal').classList.add('hidden');
+    $('rules-mask').onclick = () => $('rules-modal').classList.add('hidden');
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('rules-modal').classList.add('hidden'); $('result-modal').classList.add('hidden'); } });
+
+    $('end-turn-btn').onclick = endTurn;
+    $('restart-btn').onclick = () => $('start-btn').click();
+    $('menu-btn').onclick = () => switchScreen('menu-screen');
+    $('move-mode-btn').onclick = () => { state.actionMode = 'move'; hint('移动模式：点高亮格移动。'); renderBoard(); };
+    $('attack-mode-btn').onclick = () => { state.actionMode = 'attack'; hint('攻击模式：点高亮目标攻击。'); renderBoard(); };
+    $('cancel-mode-btn').onclick = () => { state.actionMode = null; state.pendingCast = null; hint('已取消当前操作。'); renderBoard(); };
+    $('result-mask').onclick = () => $('result-modal').classList.add('hidden');
+    $('result-restart').onclick = () => { $('result-modal').classList.add('hidden'); $('start-btn').click(); };
+    $('result-menu').onclick = () => { $('result-modal').classList.add('hidden'); switchScreen('menu-screen'); };
   }
 
   function switchScreen(id) {
@@ -100,533 +698,5 @@
     $(id).classList.add('active');
   }
 
-  function openRules() { $('rules-modal').classList.remove('hidden'); }
-  function closeRules() { $('rules-modal').classList.add('hidden'); }
-
-  function showRuntimeError(msg) {
-    const box = $('runtime-error');
-    if (!msg) {
-      box.textContent = '';
-      box.classList.add('hidden');
-    } else {
-      box.textContent = `⚠️ ${msg}`;
-      box.classList.remove('hidden');
-    }
-  }
-
-  function initMenuEvents() {
-    $('start-btn').onclick = startGame;
-    $('rules-btn').onclick = openRules;
-    $('rules-close').onclick = closeRules;
-    $('rules-mask').onclick = closeRules;
-    $('mode-select').onchange = () => { $('difficulty-wrap').style.display = $('mode-select').value === 'pve' ? 'flex' : 'none'; };
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeRules();
-    });
-  }
-
-  function startGame() {
-    closeRules();
-    try {
-      state = makeState({
-        mode: $('mode-select').value,
-        difficulty: $('difficulty-select').value,
-        soundOn: $('sound-select').value === 'on',
-        speed: Number($('speed-range').value),
-      });
-      pendingCard = null;
-      switchScreen('game-screen');
-      bindGameEvents();
-      renderAll();
-      if (!document.querySelector('#board .cell')) {
-        showRuntimeError('棋盘未正确渲染，请刷新页面重试。');
-      } else {
-        showRuntimeError('');
-      }
-    } catch (e) {
-      switchScreen('game-screen');
-      showRuntimeError(`启动失败：${e && e.message ? e.message : '未知错误'}`);
-      console.error(e);
-    }
-  }
-
-  function bindGameEvents() {
-    $('restart-btn').onclick = startGame;
-    $('to-menu-btn').onclick = () => switchScreen('menu-screen');
-    $('confirm-btn').onclick = confirmCurrentSide;
-    $('undo-btn').onclick = undoLast;
-    $('modal-restart').onclick = () => {
-      $('result-modal').classList.add('hidden');
-      startGame();
-    };
-    $('modal-menu').onclick = () => {
-      $('result-modal').classList.add('hidden');
-      switchScreen('menu-screen');
-    };
-    document.querySelectorAll('[data-close="result"]').forEach((n) => {
-      n.onclick = () => $('result-modal').classList.add('hidden');
-    });
-  }
-
-  function renderAll() {
-    $('turn-label').textContent = String(state.turn);
-    $('priority-label').textContent = state.priority === 'blue' ? '蓝方' : '红方';
-    $('phase-label').textContent = `${state.phase === 'blue' ? '蓝方' : '红方'}选牌`;
-    $('energy-blue').textContent = String(state.energy.blue);
-    $('energy-red').textContent = String(state.energy.red);
-    $('phase-side').textContent = `当前：${state.phase === 'blue' ? '蓝方' : '红方'}`;
-
-    renderBoard();
-    renderCards();
-    renderSelected();
-    renderStatus();
-    renderLogs();
-  }
-
-  function renderBoard() {
-    const board = $('board');
-    board.innerHTML = '';
-    const targets = getTargets();
-    const targetSet = new Set(targets.map((t) => key(t.x, t.y)));
-
-    for (let x = 0; x < 6; x += 1) {
-      for (let y = 0; y < 6; y += 1) {
-        const cell = document.createElement('button');
-        cell.className = 'cell';
-        cell.type = 'button';
-        cell.dataset.x = String(x);
-        cell.dataset.y = String(y);
-        if (x >= 2 && x <= 3 && y >= 2 && y <= 3) cell.classList.add('center');
-        if (state.terrain[key(x, y)] === 'rock' || state.barriers[key(x, y)]) cell.classList.add('block');
-        if (targetSet.has(key(x, y))) cell.classList.add('target');
-        cell.onclick = () => onCellClick(x, y);
-
-        const u = unitAt(x, y);
-        if (u) {
-          const ue = document.createElement('div');
-          ue.className = `unit ${u.side}`;
-          ue.textContent = `${UNIT_CFG[u.role].icon} ${u.hp}`;
-          const bd = document.createElement('span');
-          bd.className = 'badge';
-          bd.textContent = UNIT_CFG[u.role].name;
-          ue.appendChild(bd);
-          cell.appendChild(ue);
-        }
-        board.appendChild(cell);
-      }
-    }
-  }
-
-  function renderCards() {
-    const wrap = $('cards-list');
-    wrap.innerHTML = '';
-    const chosen = state.planned[state.phase].map((p) => p.cardId);
-
-    CARDS.forEach((c) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'card-btn';
-      const cd = state.cooldown[state.phase][c.id] || 0;
-      if (cd > 0) btn.classList.add('cooldown');
-      if (pendingCard === c.id) btn.classList.add('selected');
-      btn.disabled = cd > 0 || chosen.length >= 2;
-      btn.textContent = `${c.name}｜${c.hint}${cd > 0 ? '（冷却）' : ''}`;
-      btn.onclick = () => {
-        pendingCard = c.id;
-        state.selectedUnit = null;
-        hint(`已选择 ${c.name}，请在棋盘选择单位/目标。`);
-        renderBoard();
-        renderCards();
-      };
-      wrap.appendChild(btn);
-    });
-  }
-
-  function renderSelected() {
-    const list = $('selected-list');
-    list.innerHTML = '';
-    state.planned[state.phase].forEach((p, i) => {
-      const li = document.createElement('li');
-      li.textContent = `${i + 1}. ${cardName(p.cardId)} → ${planDesc(p)}`;
-      list.appendChild(li);
-    });
-  }
-
-  function renderStatus() {
-    const panel = $('status-panel');
-    panel.innerHTML = SIDES.map((side) => {
-      const rows = state.units.filter((u) => u.side === side && u.alive).map((u) => `<div class="unit-row"><span>${UNIT_CFG[u.role].name}</span><span>HP ${u.hp}</span></div>`).join('');
-      const cd = Object.entries(state.cooldown[side]).filter((x) => x[1] > 0).map((x) => cardName(x[0])).join('、') || '无';
-      return `<h4>${side === 'blue' ? '蓝方' : '红方'}（能量 ${state.energy[side]}）</h4>${rows}<p>冷却牌：${cd}</p>`;
-    }).join('<hr/>');
-  }
-
-  function renderLogs() {
-    const box = $('logs');
-    box.innerHTML = '';
-    state.logs.slice(-8).forEach((l) => {
-      const li = document.createElement('li');
-      li.textContent = l;
-      box.appendChild(li);
-    });
-  }
-
-  function planDesc(p) {
-    if (p.target) return `(${p.target.x + 1},${p.target.y + 1})`;
-    return p.unitId || '单位效果';
-  }
-
-  function onCellClick(x, y) {
-    if (!pendingCard) return;
-    const side = state.phase;
-    const cellUnit = unitAt(x, y);
-    if (!state.selectedUnit) {
-      if (!cellUnit || cellUnit.side !== side) return;
-      state.selectedUnit = cellUnit.id;
-      hint(`已选单位 ${UNIT_CFG[cellUnit.role].name}，请选目标格。`);
-      renderBoard();
-      return;
-    }
-
-    const unit = state.units.find((u) => u.id === state.selectedUnit && u.alive);
-    if (!unit) return;
-    const valid = getTargets().some((t) => t.x === x && t.y === y);
-    if (!valid) return;
-
-    state.planned[side].push({ cardId: pendingCard, unitId: unit.id, target: { x, y } });
-    beep(420, 0.05);
-    state.selectedUnit = null;
-    pendingCard = null;
-    renderAll();
-    hint(`${side === 'blue' ? '蓝方' : '红方'}已选 ${state.planned[side].length}/2 张牌。`);
-  }
-
-  function getTargets() {
-    if (!pendingCard || !state.selectedUnit) return [];
-    const unit = state.units.find((u) => u.id === state.selectedUnit && u.alive);
-    if (!unit) return [];
-    const out = [];
-    for (let x = 0; x < 6; x += 1) {
-      for (let y = 0; y < 6; y += 1) {
-        if (isValidPlan(unit, pendingCard, { x, y })) out.push({ x, y });
-      }
-    }
-    return out;
-  }
-
-  function isValidPlan(unit, cardId, target) {
-    const d = mht(unit, target);
-    const occupied = unitAt(target.x, target.y);
-    if (cardId === 'move') return d === 1 && !occupied && !isBlocked(target.x, target.y);
-    if (cardId === 'dash') return d > 0 && d <= 2 && !occupied && !isBlocked(target.x, target.y);
-    if (cardId === 'assault') return d === 1 && occupied && occupied.side !== unit.side;
-    if (cardId === 'pulse') return target.x === unit.x && target.y === unit.y;
-    if (cardId === 'barrier') return d === 1 && !occupied && !isBlocked(target.x, target.y);
-    return false;
-  }
-
-  function undoLast() {
-    const arr = state.planned[state.phase];
-    if (!arr.length) return;
-    arr.pop();
-    renderAll();
-  }
-
-  async function confirmCurrentSide() {
-    if (state.planned[state.phase].length !== 2) {
-      hint('当前方必须选满 2 张牌。');
-      return;
-    }
-
-    if (state.mode === 'pvp' && state.phase === 'blue') {
-      state.phase = 'red';
-      pendingCard = null;
-      state.selectedUnit = null;
-      renderAll();
-      hint('红方请选牌（同屏对战请避开视线）。');
-      return;
-    }
-
-    if (state.mode === 'pve' && state.phase === 'blue') {
-      state.phase = 'red';
-      state.planned.red = buildAiPlans();
-    }
-
-    await resolveTurn();
-    if (!state.winner) {
-      state.phase = 'blue';
-      pendingCard = null;
-      state.selectedUnit = null;
-      renderAll();
-      hint('新回合开始：蓝方选牌。');
-    }
-  }
-
-  async function resolveTurn() {
-    state.dashedThisTurn = { blue: {}, red: {} };
-    state.logs = [];
-
-    for (let slot = 0; slot < 2; slot += 1) {
-      const bluePlan = state.planned.blue[slot];
-      const redPlan = state.planned.red[slot];
-      if (!bluePlan || !redPlan) continue;
-
-      state.logs.push(`翻牌 ${slot + 1}：蓝[${cardName(bluePlan.cardId)}] vs 红[${cardName(redPlan.cardId)}]`);
-      renderLogs();
-      await sleep(180 / state.speed);
-
-      const order = state.priority === 'blue' ? ['blue', 'red'] : ['red', 'blue'];
-      for (const side of order) {
-        const plan = side === 'blue' ? bluePlan : redPlan;
-        applyPlan(side, plan);
-        renderAll();
-        await sleep(220 / state.speed);
-      }
-    }
-
-    tickBarriers();
-    collectEnergy();
-    updateCooldowns();
-    checkStuck();
-    checkWinner();
-
-    if (!state.winner) {
-      state.turn += 1;
-      state.priority = state.priority === 'blue' ? 'red' : 'blue';
-      state.planned = { blue: [], red: [] };
-    } else {
-      showResult();
-    }
-  }
-
-  function applyPlan(side, plan) {
-    const unit = state.units.find((u) => u.id === plan.unitId && u.alive && u.side === side);
-    if (!unit) {
-      state.logs.push(`${sideText(side)}行动失效（单位不存在）`);
-      return;
-    }
-
-    const target = plan.target;
-    if (plan.cardId === 'move') {
-      if (!isValidPlan(unit, 'move', target)) return;
-      unit.x = target.x; unit.y = target.y;
-      state.logs.push(`${sideText(side)}${UNIT_CFG[unit.role].name}移动`);
-      flash(target.x, target.y, '#7ee5ff');
-      beep(460, 0.03);
-    }
-
-    if (plan.cardId === 'dash') {
-      if (!isValidPlan(unit, 'dash', target)) return;
-      unit.x = target.x; unit.y = target.y;
-      state.dashedThisTurn[side][unit.id] = true;
-      state.logs.push(`${sideText(side)}${UNIT_CFG[unit.role].name}冲刺`);
-      flash(target.x, target.y, '#c9a6ff');
-      beep(520, 0.04);
-    }
-
-    if (plan.cardId === 'assault') {
-      if (state.dashedThisTurn[side][unit.id]) {
-        state.logs.push(`${sideText(side)}突袭失败（该单位本回合已冲刺）`);
-        return;
-      }
-      const enemy = unitAt(target.x, target.y);
-      if (!enemy || enemy.side === side || mht(unit, enemy) !== 1) return;
-      enemy.hp -= 1;
-      state.logs.push(`${sideText(side)}突袭命中 ${sideText(enemy.side)}${UNIT_CFG[enemy.role].name}`);
-      flash(target.x, target.y, '#ff7ea8');
-      beep(260, 0.06);
-      if (enemy.hp <= 0) { enemy.alive = false; state.logs.push(`${sideText(enemy.side)}${UNIT_CFG[enemy.role].name}被击破`); }
-    }
-
-    if (plan.cardId === 'barrier') {
-      if (!isValidPlan(unit, 'barrier', target)) return;
-      state.barriers[key(target.x, target.y)] = 1;
-      state.logs.push(`${sideText(side)}部署屏障`);
-      flash(target.x, target.y, '#ffcb6e');
-    }
-
-    if (plan.cardId === 'pulse') {
-      if (target.x !== unit.x || target.y !== unit.y) return;
-      const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
-      dirs.forEach(([dx, dy]) => {
-        const near = unitAt(unit.x + dx, unit.y + dy);
-        if (!near) return;
-        const nx = near.x + dx;
-        const ny = near.y + dy;
-        if (!isBlocked(nx, ny) && !unitAt(nx, ny)) {
-          near.x = nx; near.y = ny;
-          state.logs.push(`${sideText(side)}脉冲击退了${sideText(near.side)}${UNIT_CFG[near.role].name}`);
-          flash(nx, ny, '#9bf26f');
-        }
-      });
-      beep(350, 0.05);
-    }
-  }
-
-  function tickBarriers() {
-    Object.keys(state.barriers).forEach((k) => {
-      state.barriers[k] -= 1;
-      if (state.barriers[k] <= 0) delete state.barriers[k];
-    });
-  }
-
-  function collectEnergy() {
-    let blueIn = 0; let redIn = 0;
-    state.units.filter((u) => u.alive).forEach((u) => {
-      if (u.x >= 2 && u.x <= 3 && u.y >= 2 && u.y <= 3) {
-        if (u.side === 'blue') blueIn += 1; else redIn += 1;
-      }
-    });
-    if (blueIn > redIn && blueIn > 0) { state.energy.blue += 1; state.logs.push('蓝方夺取中心能量 +1'); }
-    if (redIn > blueIn && redIn > 0) { state.energy.red += 1; state.logs.push('红方夺取中心能量 +1'); }
-  }
-
-  function updateCooldowns() {
-    SIDES.forEach((side) => {
-      Object.keys(state.cooldown[side]).forEach((id) => {
-        if (state.cooldown[side][id] > 0) state.cooldown[side][id] -= 1;
-      });
-      state.planned[side].forEach((p) => { state.cooldown[side][p.cardId] = 1; });
-    });
-  }
-
-  function hasAnyValid(side) {
-    const alive = state.units.filter((u) => u.alive && u.side === side);
-    if (!alive.length) return false;
-    for (const u of alive) {
-      for (const c of CARDS) {
-        if (state.cooldown[side][c.id] > 0) continue;
-        for (let x = 0; x < 6; x += 1) for (let y = 0; y < 6; y += 1) if (isValidPlan(u, c.id, { x, y })) return true;
-      }
-    }
-    return false;
-  }
-
-  function checkStuck() {
-    SIDES.forEach((side) => {
-      state.stuck[side] = hasAnyValid(side) ? 0 : state.stuck[side] + 1;
-    });
-  }
-
-  function checkWinner() {
-    const blueCore = state.units.find((u) => u.id === 'blue-core');
-    const redCore = state.units.find((u) => u.id === 'red-core');
-    if (!blueCore.alive) return setWinner('red', '击破蓝方核心体');
-    if (!redCore.alive) return setWinner('blue', '击破红方核心体');
-    if (state.energy.blue >= 3) return setWinner('blue', '累计 3 点中心能量');
-    if (state.energy.red >= 3) return setWinner('red', '累计 3 点中心能量');
-    if (state.stuck.blue >= 1) return setWinner('red', '蓝方连续一回合无有效行动');
-    if (state.stuck.red >= 1) return setWinner('blue', '红方连续一回合无有效行动');
-  }
-
-  function setWinner(side, reason) {
-    state.winner = side;
-    state.winnerReason = reason;
-  }
-
-  function showResult() {
-    $('result-title').textContent = state.winner === 'blue' ? '蓝方胜利' : '红方胜利';
-    $('result-text').textContent = state.winnerReason;
-    $('result-modal').classList.remove('hidden');
-  }
-
-  function buildAiPlans() {
-    const ai = 'red';
-    const plans = [];
-    const used = {};
-    for (let slot = 0; slot < 2; slot += 1) {
-      let best = null;
-      let bestScore = -1e9;
-      const units = state.units.filter((u) => u.alive && u.side === ai);
-      for (const card of CARDS) {
-        if (state.cooldown[ai][card.id] > 0 || used[card.id]) continue;
-        for (const u of units) {
-          for (let x = 0; x < 6; x += 1) {
-            for (let y = 0; y < 6; y += 1) {
-              const target = { x, y };
-              if (!isValidPlan(u, card.id, target)) continue;
-              const score = scoreAiPlan(u, card.id, target);
-              if (score > bestScore) {
-                bestScore = score;
-                best = { cardId: card.id, unitId: u.id, target };
-              }
-            }
-          }
-        }
-      }
-      if (!best) {
-        const fallback = units[0];
-        best = { cardId: 'pulse', unitId: fallback.id, target: { x: fallback.x, y: fallback.y } };
-      }
-      used[best.cardId] = true;
-      plans.push(best);
-    }
-    return plans;
-  }
-
-  function scoreAiPlan(unit, cardId, target) {
-    const center = { x: 2.5, y: 2.5 };
-    const blueCore = state.units.find((u) => u.id === 'blue-core' && u.alive);
-    const redCore = state.units.find((u) => u.id === 'red-core' && u.alive);
-    let s = 0;
-
-    if (cardId === 'assault') {
-      const enemy = unitAt(target.x, target.y);
-      if (!enemy) return -999;
-      s += enemy.role === 'core' ? 220 : 90;
-      if (enemy.hp === 1) s += 50;
-    }
-
-    if (cardId === 'move' || cardId === 'dash') {
-      s += 16 - (Math.abs(target.x - center.x) + Math.abs(target.y - center.y)) * 2;
-      if (blueCore) s += 8 - mht(target, blueCore);
-      if (redCore && unit.role === 'core') s += mht(target, redCore) * 1.5;
-      if (cardId === 'dash') s += 4;
-    }
-
-    if (cardId === 'barrier') {
-      if (blueCore) s += 10 - mht(target, blueCore) * 1.2;
-      s += (target.x >= 2 && target.x <= 3 && target.y >= 2 && target.y <= 3) ? 8 : 0;
-    }
-
-    if (cardId === 'pulse') {
-      const around = [[1,0],[-1,0],[0,1],[0,-1]];
-      around.forEach(([dx,dy]) => {
-        const e = unitAt(unit.x + dx, unit.y + dy);
-        if (e && e.side === 'blue') s += e.role === 'core' ? 35 : 18;
-      });
-    }
-
-    if (state.difficulty === 'easy') s *= 0.7;
-    if (state.difficulty === 'hard') s *= 1.15;
-    return s;
-  }
-
-  function cardName(id) { return (CARDS.find((c) => c.id === id) || { name: id }).name; }
-  function sideText(s) { return s === 'blue' ? '蓝' : '红'; }
-
-  function hint(text) { $('hint').textContent = text; }
-
-  function flash(x, y, color) {
-    const cell = [...document.querySelectorAll('.cell')].find((c) => Number(c.dataset.x) === x && Number(c.dataset.y) === y);
-    if (!cell) return;
-    cell.style.boxShadow = `0 0 18px ${color}`;
-    setTimeout(() => { cell.style.boxShadow = ''; }, 120);
-  }
-
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  let audioCtx;
-  function beep(freq, dur) {
-    if (!state || !state.soundOn) return;
-    try {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'triangle'; osc.frequency.value = freq; gain.gain.value = 0.02;
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(); osc.stop(audioCtx.currentTime + dur);
-    } catch (e) {}
-  }
-
-  initMenuEvents();
+  bindMenu();
 })();
