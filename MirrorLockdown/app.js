@@ -116,7 +116,7 @@
 
   function validTargets(state, unit, action) {
     const out = [];
-    if (!unit?.alive) return out;
+    if (!unit || !unit.alive) return out;
     const tpl = UNIT_TEMPLATES[unit.role];
     if (action === ACTIONS.MOVE) {
       for (let x = 0; x < state.size; x += 1) {
@@ -194,7 +194,11 @@
     intents.sort((a, b) => (a.unit.side === priorityFirst ? -1 : 1));
 
     const targetMap = {};
-    intents.forEach((i) => { const k = keyOf(i.target.x, i.target.y); (targetMap[k] ||= []).push(i); });
+    intents.forEach((i) => {
+      const k = keyOf(i.target.x, i.target.y);
+      if (!targetMap[k]) targetMap[k] = [];
+      targetMap[k].push(i);
+    });
 
     Object.values(targetMap).forEach((conflicts) => {
       if (conflicts.length > 1 && conflicts.some((c) => c.unit.side !== conflicts[0].unit.side)) {
@@ -279,8 +283,8 @@
   function detectWinner(state) {
     const blueCore = state.units.find((u) => u.id === 'blue-core');
     const redCore = state.units.find((u) => u.id === 'red-core');
-    if (!blueCore?.alive) return { side: SIDES.RED, reason: '击破了蓝方主核' };
-    if (!redCore?.alive) return { side: SIDES.BLUE, reason: '击破了红方主核' };
+    if (!blueCore || !blueCore.alive) return { side: SIDES.RED, reason: '击破了蓝方主核' };
+    if (!redCore || !redCore.alive) return { side: SIDES.BLUE, reason: '击破了红方主核' };
     if (state.centerControl.blue >= 2) return { side: SIDES.BLUE, reason: '连续两回合占领中心区' };
     if (state.centerControl.red >= 2) return { side: SIDES.RED, reason: '连续两回合占领中心区' };
     if (!hasEffectiveActions(state, SIDES.BLUE)) return { side: SIDES.RED, reason: '蓝方无有效行动' };
@@ -349,8 +353,8 @@
     attacks.forEach((target) => {
       const targetUnit = getUnitAt(state, target.x, target.y);
       let score = 60;
-      if (targetUnit?.role === 'core') score += 80;
-      else if (targetUnit?.role === 'striker') score += 25;
+      if (targetUnit && targetUnit.role === 'core') score += 80;
+      else if (targetUnit && targetUnit.role === 'striker') score += 25;
       else score += 15;
       scored.push({ score, plan: { action: ACTIONS.ATTACK, target } });
     });
@@ -372,7 +376,7 @@
     if (unit.role === 'disruptor') blocks.forEach((target) => scored.push({ score: 30, plan: { action: ACTIONS.BLOCK, target } }));
     scored.push({ score: 18, plan: { action: ACTIONS.DEFEND } });
     scored.sort((a, b) => b.score - a.score);
-    return scored[0]?.plan || { action: ACTIONS.DEFEND };
+    return (scored[0] && scored[0].plan) || { action: ACTIONS.DEFEND };
   }
 
   const roleTag = { core: '核', striker: '突', guard: '卫', disruptor: '扰' };
@@ -604,7 +608,7 @@
   }
 
   async function replayTurn() {
-    if (!state?.replayLog) return;
+    if (!state || !state.replayLog) return;
     const logs = state.replayLog.logs || [];
     $('hint').textContent = '正在回放上回合...';
     for (const l of logs.slice(0, 8)) {
@@ -636,7 +640,7 @@
 
   let audioCtx;
   function beep(freq, duration) {
-    if (!state?.soundOn) return;
+    if (!state || !state.soundOn) return;
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       const osc = audioCtx.createOscillator();
@@ -648,7 +652,7 @@
       gain.connect(audioCtx.destination);
       osc.start();
       osc.stop(audioCtx.currentTime + duration);
-    } catch {
+    } catch (e) {
       // ignore audio errors silently
     }
   }
