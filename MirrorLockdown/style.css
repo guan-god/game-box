@@ -18,6 +18,25 @@ body {
 .app { min-height: 100vh; padding: 16px; }
 .screen { display: none; }
 .screen.active { display: block; }
+.menu-screen {
+  min-height: calc(100vh - 32px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.menu-bg-glow {
+  position: absolute;
+  inset: -15% -20%;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(99, 180, 255, 0.26), transparent 45%),
+    radial-gradient(circle at 85% 25%, rgba(174, 104, 255, 0.2), transparent 40%),
+    linear-gradient(transparent 96%, rgba(78, 200, 255, 0.08) 96%),
+    linear-gradient(90deg, transparent 96%, rgba(78, 200, 255, 0.08) 96%);
+  background-size: auto, auto, 24px 24px, 24px 24px;
+  pointer-events: none;
+}
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -25,7 +44,15 @@ body {
   box-shadow: var(--glow);
   backdrop-filter: blur(4px);
 }
-.menu-panel, .rules-panel { max-width: 860px; margin: 40px auto; padding: 24px; }
+.menu-panel, .rules-panel { max-width: 900px; padding: 28px; }
+.menu-panel {
+  width: min(92vw, 900px);
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+.rules-panel { margin: 40px auto; }
 h1 { margin: 0; font-size: 44px; letter-spacing: 3px; }
 .subtitle { opacity: .85; }
 .menu-grid {
@@ -45,7 +72,7 @@ select, button, input[type="range"] {
 button { cursor: pointer; transition: .2s; }
 button:hover { transform: translateY(-1px); border-color: var(--blue); }
 button.primary { background: linear-gradient(90deg, #3f74ff, #865bff); border: none; }
-.menu-actions { display: flex; gap: 12px; }
+.menu-actions { display: flex; gap: 12px; margin-top: 8px; }
 .topbar {
   display: grid;
   grid-template-columns: repeat(4, auto) 1fr;

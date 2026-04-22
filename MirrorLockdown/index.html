@@ -8,7 +8,8 @@
   </head>
   <body>
     <div id="app" class="app">
-      <section id="menu-screen" class="screen active">
+      <section id="menu-screen" class="screen active menu-screen">
+        <div class="menu-bg-glow" aria-hidden="true"></div>
         <div class="panel menu-panel">
           <h1>镜域封锁</h1>
           <p class="subtitle">同时行动 · 镜像公平 · 预判博弈</p>
@@ -49,8 +50,8 @@
             </label>
           </div>
           <div class="menu-actions">
-            <button id="start-btn" class="primary">开始游戏</button>
-            <button id="rules-btn">规则说明</button>
+            <button id="start-btn" class="primary" type="button">开始游戏</button>
+            <button id="rules-btn" type="button">规则说明</button>
           </div>
         </div>
       </section>
@@ -65,7 +66,7 @@
             <li>胜利条件：击破主核 / 连续两回合占领中心区 / 让对手无有效行动。</li>
             <li>地形与事件都为镜像对称，避免开局天然优势。</li>
           </ol>
-          <button id="back-menu-btn">返回主菜单</button>
+          <button id="back-menu-btn" type="button">返回主菜单</button>
         </div>
       </section>
 
@@ -75,9 +76,9 @@
           <div>当前优先权：<span id="priority-label">蓝方</span></div>
           <div>阶段：<span id="phase-label">蓝方规划</span></div>
           <div class="header-actions">
-            <button id="replay-btn">回放上回合</button>
-            <button id="restart-btn">重新开始</button>
-            <button id="to-menu-btn">返回主菜单</button>
+            <button id="replay-btn" type="button">回放上回合</button>
+            <button id="restart-btn" type="button">重新开始</button>
+            <button id="to-menu-btn" type="button">返回主菜单</button>
           </div>
         </header>
 
@@ -86,7 +87,7 @@
           <section class="board-wrap panel">
             <div id="board" class="board"></div>
             <div id="hint" class="hint">请选择单位并设置行动。</div>
-            <button id="end-plan-btn" class="primary">确认当前方行动</button>
+            <button id="end-plan-btn" class="primary" type="button">确认当前方行动</button>
           </section>
           <aside class="panel action-panel">
             <h3>行动面板</h3>
@@ -109,8 +110,8 @@
         <div class="panel modal-card">
           <h2 id="result-title">对局结束</h2>
           <p id="result-text"></p>
-          <button id="modal-restart-btn" class="primary">再来一局</button>
-          <button id="modal-menu-btn">回到菜单</button>
+          <button id="modal-restart-btn" class="primary" type="button">再来一局</button>
+          <button id="modal-menu-btn" type="button">回到菜单</button>
         </div>
       </div>
     </div>
