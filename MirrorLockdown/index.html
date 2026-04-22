@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>双相夺核：晶格战线</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="app">
+    <section id="menu-screen" class="screen active menu-screen">
+      <div class="panel menu-panel">
+        <h1>双相夺核：晶格战线</h1>
+        <p>卡牌构筑节奏 + 棋盘走位博弈</p>
+        <div class="menu-grid">
+          <label>模式
+            <select id="mode-select">
+              <option value="pvp">本地 PVP</option>
+              <option value="pve">PVE 对战 AI</option>
+            </select>
+          </label>
+          <label>先手
+            <select id="first-select">
+              <option value="blue">蓝方先手</option>
+              <option value="red">红方先手</option>
+            </select>
+          </label>
+          <label>AI 难度
+            <select id="difficulty-select">
+              <option value="easy">简单</option>
+              <option value="normal" selected>普通</option>
+              <option value="hard">困难</option>
+            </select>
+          </label>
+          <label>音效
+            <select id="sound-select"><option value="on">开启</option><option value="off">关闭</option></select>
+          </label>
+          <label>动画速度
+            <select id="anim-speed-select"><option value="normal">正常</option><option value="fast">快速</option></select>
+          </label>
+        </div>
+        <div class="menu-actions">
+          <button id="start-btn" class="primary" type="button">开始游戏</button>
+          <button id="rules-btn" type="button">规则说明</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="game-screen" class="screen">
+      <header class="panel topbar">
+        <div>回合 <span id="turn-label">1</span></div>
+        <div>当前方：<span id="side-label">蓝方</span></div>
+        <div>法力：<span id="mana-label">1/1</span></div>
+        <div>水晶：蓝 <span id="blue-core">20</span> | 红 <span id="red-core">20</span></div>
+        <div class="header-actions">
+          <button id="end-turn-btn" class="primary" type="button">结束回合</button>
+          <button id="restart-btn" type="button">重开</button>
+          <button id="menu-btn" type="button">菜单</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <aside class="panel info-panel">
+          <h3>单位详情</h3>
+          <div id="unit-detail">未选择单位</div>
+          <h3>提示</h3>
+          <div id="hint">先打出卡牌，再控制单位移动与攻击。</div>
+          <h3>日志</h3>
+          <ul id="logs" class="logs"></ul>
+        </aside>
+
+        <section class="panel board-wrap">
+          <div id="board" class="board"></div>
+          <div id="fx-layer" class="fx-layer"></div>
+          <div id="turn-banner" class="turn-banner hidden"></div>
+          <div id="runtime-error" class="runtime-error hidden"></div>
+          <div class="action-row">
+            <button id="move-mode-btn" type="button">移动模式</button>
+            <button id="attack-mode-btn" type="button">攻击模式</button>
+            <button id="cancel-mode-btn" type="button">取消操作</button>
+          </div>
+        </section>
+
+        <aside class="panel hand-panel">
+          <h3>手牌</h3>
+          <div id="hand-list" class="hand-list"></div>
+          <h3>牌库</h3>
+          <div id="deck-count"></div>
+          <h3>状态</h3>
+          <div id="status-box"></div>
+        </aside>
+      </main>
+    </section>
+
+    <div id="rules-modal" class="modal hidden">
+      <div class="mask" id="rules-mask"></div>
+      <div class="panel modal-card">
+        <h2>规则说明（1 分钟）</h2>
+        <ul>
+          <li>目标：将敌方水晶生命降至 0。</li>
+          <li>每回合开始：法力上限 +1（最多 10），法力回满，抽 1 张牌。</li>
+          <li>你可用法力打出随从牌、法术牌、地形/装备牌。</li>
+          <li>随从真实存在于 7x5 棋盘，可移动、卡位、攻击。</li>
+          <li>守卫单位会保护后排目标；飞行可越障；护盾免第一次伤害。</li>
+          <li>后手获得“幸运币”：本回合 +1 临时法力。</li>
+        </ul>
+        <button id="rules-close" class="primary" type="button">关闭</button>
+      </div>
+    </div>
+
+    <div id="result-modal" class="modal hidden">
+      <div class="mask" id="result-mask"></div>
+      <div class="panel modal-card">
+        <h2 id="result-title">胜利</h2>
+        <p id="result-text"></p>
+        <div class="menu-actions">
+          <button id="result-restart" class="primary" type="button">再来一局</button>
+          <button id="result-menu" type="button">回菜单</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>
