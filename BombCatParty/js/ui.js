@@ -22,6 +22,7 @@ export function renderMenu(root, handlers) {
     h('div', { class: 'title' }, '爆裂猫团'),
     h('div', { class: 'subtitle' }, '原创派对卡牌：坑人、反制、翻盘与尖叫并存。'),
     h('div', { class: 'menu-grid' }, [
+      h('button', { class: 'btn-main', onclick: () => handlers.start('ai') }, '开始游戏（快速人机）'),
       h('button', { class: 'btn-main', onclick: () => handlers.start('ai') }, '开始：人机对战'),
       h('button', { class: 'btn-main btn-sub', onclick: () => handlers.start('local') }, '开始：本地多人'),
       h('button', { class: 'btn-main btn-sub', onclick: handlers.rules }, '规则说明'),
@@ -119,25 +120,46 @@ export function renderGame(root, state, viewerIndex, handlers) {
   root.appendChild(handPanel);
 }
 
-export function showModal(contentHtml, actions = []) {
-  const root = document.getElementById('modal-root');
-  root.innerHTML = '';
-  const body = h('div', { class: 'modal-mask' }, [
-    h('div', { class: 'modal' }, [
-      (() => {
-        const c = h('div');
-        c.innerHTML = contentHtml;
-        return c;
-      })(),
+let escHandler = null;
+
+export function showModal(contentHtml, actions = [], options = {}) {
+    const root = document.getElementById('modal-root');
+    root.innerHTML = '';
+    const onClose = options.onClose || (() => {});
+    const close = () => {
+      closeModal();
+      onClose();
+    };
+    const body = h('div', { class: 'modal-mask' }, [
+      h('div', { class: 'modal' }, [
+        h('button', { class: 'modal-close', onclick: close, title: '关闭' }, '✕'),
+        (() => {
+          const c = h('div');
+          c.innerHTML = contentHtml;
+          return c;
+        })(),
       h('div', { class: 'actions' }, actions.map(a => h('button', { class: a.className || 'inline-btn', onclick: a.onClick }, a.label)))
-    ])
-  ]);
-  root.appendChild(body);
+      ])
+    ]);
+    body.addEventListener('click', (e) => {
+      if (e.target === body && options.closeOnMask !== false) close();
+    });
+    root.appendChild(body);
+
+    if (escHandler) document.removeEventListener('keydown', escHandler);
+    escHandler = (e) => {
+      if (e.key === 'Escape') close();
+    };
+    document.addEventListener('keydown', escHandler);
 }
 
 export function closeModal() {
   const root = document.getElementById('modal-root');
   if (root) root.innerHTML = '';
+  if (escHandler) {
+    document.removeEventListener('keydown', escHandler);
+    escHandler = null;
+  }
 }
 
 export function showPassOverlay(playerName, onReady) {
@@ -153,7 +175,7 @@ export function showPassOverlay(playerName, onReady) {
   document.body.appendChild(box);
 }
 
-export function showRules() {
+export function showRules(onClose) {
   showModal(`
     <h2>规则说明</h2>
     <p>目标：活到最后。每位玩家轮流行动，通常通过<strong>抽一张牌</strong>结束当前小回合。</p>
@@ -165,10 +187,10 @@ export function showRules() {
       <li><strong>猫咪组合</strong>：两张同名猫可发动偷牌，三张以上可增强。</li>
     </ul>
     <p>节目效果建议：在你怀疑顶部有炸弹时，先预知未来，再选择跳过、洗牌或攻击甩锅。</p>
-  `, [{ label: '知道了', className: 'inline-btn primary', onClick: closeModal }]);
+  `, [{ label: '知道了', className: 'inline-btn primary', onClick: () => { closeModal(); onClose?.(); } }], { onClose });
 }
 
-export function showSettings(current, onSave) {
+export function showSettings(current, onSave, onClose) {
   const html = `
     <h2>设置</h2>
     <div class="setup-row"><label>音效：</label><select id="set-sound"><option value="on">开</option><option value="off">关</option></select></div>
@@ -181,8 +203,9 @@ export function showSettings(current, onSave) {
       const speed = Number(document.getElementById('set-speed').value);
       onSave?.({ soundOn, speed });
       closeModal();
+      onClose?.();
     }}
-  ]);
+  ], { onClose });
 
   document.getElementById('set-sound').value = current.soundOn ? 'on' : 'off';
   document.getElementById('set-speed').oninput = (e) => {
@@ -221,7 +244,7 @@ export function showFutureCards(cards) {
   showModal(`<h2>预知未来</h2><p>接下来顶部三张：</p>
   <div class="setup-row">${cards.map(c => `<div class='card ${getCardTag(c)}'><div class='badge'>${c.emoji}</div><div class='name'>${c.name}</div><div class='desc'>${c.desc}</div></div>`).join('')}</div>`, [
     { label: '收好情报', className: 'inline-btn primary', onClick: closeModal }
-  ]);
+  ], { closeOnMask: false });
 }
 
 export function showWinner(playerName, onRestart, onMenu) {

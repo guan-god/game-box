@@ -8,7 +8,6 @@ import {
   showSettings,
   promptChooseTarget,
   promptDefusePos,
-  showFutureCards,
   showWinner,
   showPassOverlay,
   showTutorialOnce,
@@ -24,61 +23,152 @@ const screens = {
   game: document.getElementById('game-screen')
 };
 
-const appState = {
+const state = {
   screen: 'menu',
   setupMode: 'ai',
   setupPlayers: 3,
+  showRules: false,
+  showSettings: false,
   engine: null,
   viewer: 0,
-  busy: false
+  busy: false,
+  lastError: null,
+  debug: location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.search.includes('debug=1')
 };
 
-function switchScreen(name) {
-  appState.screen = name;
-  Object.entries(screens).forEach(([k, el]) => el.classList.toggle('active', k === name));
+function logEvent(msg, payload = null) {
+  console.log(`[BombCatParty] ${msg}`, payload ?? '');
+}
+
+function mountDebugPanel() {
+  const old = document.getElementById('debug-panel');
+  if (old) old.remove();
+  if (!state.debug) return;
+  const p = document.createElement('div');
+  p.id = 'debug-panel';
+  p.className = 'debug-panel';
+  p.innerHTML = `screen: <b>${state.screen}</b><br>showRules: <b>${state.showRules}</b><br>showSettings: <b>${state.showSettings}</b>${state.lastError ? `<br>error: <b>${state.lastError}</b>` : ''}`;
+  document.body.appendChild(p);
+}
+
+function setScreen(next) {
+  state.screen = next;
+  logEvent('screen changed', next);
+  Object.entries(screens).forEach(([key, el]) => {
+    if (!el) return;
+    el.classList.toggle('active', key === next);
+  });
+}
+
+function renderFallback(container, error = null) {
+  if (!container) return;
+  container.innerHTML = `<div class="panel error-card"><h2>主菜单加载失败</h2><p>当前界面状态：${state.screen}</p>${error ? `<pre>${String(error.message || error)}</pre>` : ''}</div>`;
+}
+
+function renderScreen() {
+  try {
+    state.lastError = null;
+    if (!screens.menu || !screens.setup || !screens.game) {
+      throw new Error('screen 容器节点缺失，无法渲染');
+    }
+
+    if (!['menu', 'setup', 'game'].includes(state.screen)) {
+      logEvent('invalid screen detected, fallback to menu', state.screen);
+      state.screen = 'menu';
+    }
+
+    if (state.screen === 'menu') {
+      renderMenu(screens.menu, {
+        start: (mode) => {
+          logEvent('click menu start', mode);
+          state.setupMode = mode;
+          state.setupPlayers = mode === 'ai' ? 3 : 4;
+          setScreen('setup');
+          render();
+        },
+        rules: openRules,
+        settings: openSettings
+      });
+    } else if (state.screen === 'setup') {
+      renderSetup(screens.setup, state.setupMode, {
+        onPlayers: (n) => {
+          state.setupPlayers = n;
+          logEvent('setup players changed', n);
+        },
+        confirm: () => {
+          logEvent('click confirm start game', { mode: state.setupMode, players: state.setupPlayers });
+          startGame(state.setupMode, state.setupPlayers);
+        },
+        back: () => {
+          setScreen('menu');
+          render();
+        }
+      });
+    } else if (state.screen === 'game') {
+      const gameState = state.engine?.getPublicState();
+      if (!gameState) throw new Error('game state 不存在，无法渲染对局界面');
+      renderGame(screens.game, gameState, state.viewer, {
+        playCard: (index, card) => onHumanPlay(index, card),
+        draw: () => onHumanDraw(),
+        combo: () => onHumanCombo(),
+        restart: () => startGame(state.setupMode, state.setupPlayers),
+        backMenu: () => {
+          setScreen('menu');
+          render();
+        },
+        isPlayable: (index, card) => canHumanPlay(index, card),
+        handHint: () => state.engine.handLimitHint(state.viewer)
+      });
+    }
+  } catch (err) {
+    state.lastError = err?.message || String(err);
+    console.error(err);
+    renderFallback(screens[state.screen] || screens.menu, err);
+  }
 }
 
 function render() {
-  if (appState.screen === 'menu') {
-    renderMenu(screens.menu, {
-      start: (mode) => {
-        appState.setupMode = mode;
-        appState.setupPlayers = mode === 'ai' ? 3 : 4;
-        switchScreen('setup');
-        render();
-      },
-      rules: showRules,
-      settings: () => showSettings(getFxSettings(), saveSettings)
+  renderScreen();
+  renderModals();
+  mountDebugPanel();
+}
+
+function renderModals() {
+  if (state.showRules) {
+    showRules(() => {
+      state.showRules = false;
+      mountDebugPanel();
     });
     return;
   }
-
-  if (appState.screen === 'setup') {
-    renderSetup(screens.setup, appState.setupMode, {
-      onPlayers: (n) => appState.setupPlayers = n,
-      confirm: () => startGame(appState.setupMode, appState.setupPlayers),
-      back: () => { switchScreen('menu'); render(); }
+  if (state.showSettings) {
+    showSettings(getFxSettings(), saveSettings, () => {
+      state.showSettings = false;
+      mountDebugPanel();
     });
     return;
   }
+  closeModal();
+}
 
-  if (appState.screen === 'game') {
-    const state = appState.engine.getPublicState();
-    renderGame(screens.game, state, appState.viewer, {
-      playCard: (index, card) => onHumanPlay(index, card),
-      draw: () => onHumanDraw(),
-      combo: () => onHumanCombo(),
-      restart: () => startGame(appState.setupMode, appState.setupPlayers),
-      backMenu: () => { switchScreen('menu'); render(); },
-      isPlayable: (index, card) => canHumanPlay(index, card),
-      handHint: () => appState.engine.handLimitHint(appState.viewer)
-    });
-  }
+function openRules() {
+  logEvent('click rules');
+  state.showSettings = false;
+  state.showRules = true;
+  render();
+}
+
+function openSettings() {
+  logEvent('click settings');
+  state.showRules = false;
+  state.showSettings = true;
+  render();
 }
 
 function saveSettings(next) {
   setFxSettings(next);
   localStorage.setItem('bomb-cat-settings', JSON.stringify(next));
+  logEvent('save settings', next);
 }
 
 function loadSettings() {
@@ -86,19 +176,19 @@ function loadSettings() {
     const raw = localStorage.getItem('bomb-cat-settings');
     if (!raw) return;
     setFxSettings(JSON.parse(raw));
-  } catch {
-    // ignore
+  } catch (err) {
+    console.warn('设置读取失败', err);
   }
 }
 
 function currentPlayer() {
-  return appState.engine.state.players[appState.engine.state.current];
+  return state.engine.state.players[state.engine.state.current];
 }
 
 function canHumanPlay(index, card) {
   const p = currentPlayer();
-  if (!p.isHuman || p.id !== appState.viewer) return false;
-  if (appState.busy) return false;
+  if (!p?.isHuman || p.id !== state.viewer) return false;
+  if (state.busy) return false;
   if (['bomb', 'defuse', 'counter'].includes(card.id) || card.type === 'cat') return false;
   return true;
 }
@@ -106,166 +196,171 @@ function canHumanPlay(index, card) {
 async function onHumanPlay(index, card) {
   const p = currentPlayer();
   if (!canHumanPlay(index, card)) return;
-
   let payload = {};
   if (card.id === 'favor') {
-    const t = await promptChooseTarget(appState.engine.state.players, p.id, '索要目标');
+    const t = await promptChooseTarget(state.engine.state.players, p.id, '索要目标');
     if (t == null) return;
     payload.target = t;
   }
-
   sfx.play();
-  await appState.engine.playCard(p.id, index, payload);
+  await state.engine.playCard(p.id, index, payload);
   render();
-  if (maybeEnded()) return;
+  if (state.engine.state.winner != null) return;
   await maybeRunAi();
 }
 
 async function onHumanDraw() {
   const p = currentPlayer();
-  if (!p.isHuman || p.id !== appState.viewer || appState.busy) return;
+  if (!p?.isHuman || p.id !== state.viewer || state.busy) return;
   sfx.draw();
   pulsePile('deck-pile');
-  await appState.engine.performDraw(p.id);
+  await state.engine.performDraw(p.id);
   render();
-  if (maybeEnded()) return;
+  if (state.engine.state.winner != null) return;
   await maybeRunAi();
 }
 
 async function onHumanCombo() {
   const p = currentPlayer();
-  if (!p.isHuman || p.id !== appState.viewer || appState.busy) return;
-  const comboOptions = appState.engine.canUseCombo(p.id);
-  if (!comboOptions.length) {
+  if (!p?.isHuman || p.id !== state.viewer || state.busy) return;
+  const combos = state.engine.canUseCombo(p.id);
+  if (!combos.length) {
     toast('你没有两张同名猫咪牌。');
     return;
   }
-  const combo = comboOptions[0];
-  const target = await promptChooseTarget(appState.engine.state.players, p.id, '猫咪组合目标');
+  const choice = combos[0];
+  const target = await promptChooseTarget(state.engine.state.players, p.id, '猫咪组合目标');
   if (target == null) return;
-  await appState.engine.doCatCombo(p.id, combo.id, target);
+  await state.engine.doCatCombo(p.id, choice.id, target);
   render();
 }
 
-function maybeEnded() {
-  const state = appState.engine.state;
-  if (state.winner != null) return true;
-  return false;
-}
-
 async function maybeRunAi() {
-  if (appState.busy) return;
-  appState.busy = true;
-
+  if (state.busy) return;
+  state.busy = true;
   try {
     while (true) {
-      const state = appState.engine.state;
-      if (state.winner != null) break;
+      const gs = state.engine.state;
+      if (gs.winner != null) break;
       const p = currentPlayer();
       if (p.isHuman) {
-        if (state.mode === 'local' && state.waitingPass) {
+        if (gs.mode === 'local' && gs.waitingPass) {
           showPassOverlay(p.name, () => {
-            state.waitingPass = false;
-            appState.viewer = p.id;
+            gs.waitingPass = false;
+            state.viewer = p.id;
             render();
           });
         }
         break;
       }
-
-      appState.viewer = 0;
+      state.viewer = 0;
       render();
       toast(`${p.name} 思考中...`);
-      await sleep(600 / getFxSettings().speed);
+      await sleep(580 / getFxSettings().speed);
 
-      const action = chooseAiAction(appState.engine, p.id);
+      const action = chooseAiAction(state.engine, p.id);
       if (action.type === 'draw') {
         sfx.draw();
         pulsePile('deck-pile');
-        await appState.engine.performDraw(p.id);
+        await state.engine.performDraw(p.id);
       } else if (action.type === 'play') {
         sfx.play();
-        await appState.engine.playCard(p.id, action.cardIndex, { target: action.target });
+        await state.engine.playCard(p.id, action.cardIndex, { target: action.target });
       } else if (action.type === 'combo') {
-        await appState.engine.doCatCombo(p.id, action.catId, action.target);
+        await state.engine.doCatCombo(p.id, action.catId, action.target);
       }
       render();
-      await sleep(350 / getFxSettings().speed);
+      await sleep(260 / getFxSettings().speed);
     }
   } finally {
-    appState.busy = false;
+    state.busy = false;
   }
 }
 
 function startGame(mode, totalPlayers) {
-  appState.setupMode = mode;
-  appState.setupPlayers = totalPlayers;
-  appState.viewer = 0;
+  state.setupMode = mode;
+  state.setupPlayers = totalPlayers;
+  state.viewer = 0;
+  state.showRules = false;
+  state.showSettings = false;
 
-  appState.engine = new GameEngine({ mode, totalPlayers }, {
+  state.engine = new GameEngine({ mode, totalPlayers }, {
     onLog: () => render(),
     onState: () => render(),
-    onDraw: async (_player, card) => {
-      if (card.id === 'bomb') { sfx.danger(); pulsePile('deck-pile'); }
+    onDraw: (_player, card) => {
+      if (card.id === 'bomb') {
+        sfx.danger();
+        pulsePile('deck-pile');
+      }
     },
     onEliminate: () => sfx.danger(),
     onCounter: () => sfx.counter(),
     onWin: (winner) => {
       sfx.win();
-      showWinner(winner.name, () => startGame(appState.setupMode, appState.setupPlayers), () => {
-        switchScreen('menu');
+      showWinner(winner.name, () => startGame(state.setupMode, state.setupPlayers), () => {
+        setScreen('menu');
         render();
       });
     },
     requestDefusePosition: async (playerIndex, deckLen) => {
-      const p = appState.engine.state.players[playerIndex];
+      const p = state.engine.state.players[playerIndex];
       sfx.defuse();
-      if (p.isHuman) {
-        return promptDefusePos(deckLen);
-      }
-      await sleep(250 / getFxSettings().speed);
+      if (p.isHuman) return promptDefusePos(deckLen);
+      await sleep(220 / getFxSettings().speed);
       return chooseAiDefusePos(deckLen);
     },
     showFuture: async (playerIndex, cards) => {
-      const p = appState.engine.state.players[playerIndex];
+      const p = state.engine.state.players[playerIndex];
       if (p.isHuman) {
-        showFutureCards(cards);
         await new Promise(resolve => {
           showModal(`<h2>预知未来</h2><p>${cards.map(c => `${c.emoji}${c.name}`).join(' / ')}</p>`, [
             { label: '收起', className: 'inline-btn primary', onClick: () => { closeModal(); resolve(); } }
-          ]);
+          ], { closeOnMask: false });
         });
       } else {
-        appState.engine.log(`🤖 ${p.name} 看了看未来，神秘一笑。`);
+        state.engine.log(`🤖 ${p.name} 看了看未来，神秘一笑。`);
       }
     },
     askCounter: async ({ reactor, sourcePlayer, sourceCard }) => {
-      const p = appState.engine.state.players[reactor];
+      const p = state.engine.state.players[reactor];
       if (!p.alive) return false;
       if (p.isHuman) {
         return new Promise(resolve => {
           showModal(`<h2>是否反制？</h2>
-            <p>${p.name}：${appState.engine.state.players[sourcePlayer].name} 打出了【${sourceCard.name}】。</p>
+            <p>${p.name}：${state.engine.state.players[sourcePlayer].name} 打出了【${sourceCard.name}】。</p>
             <p>你要不要打出【反制】？</p>`, [
             { label: '不反制', className: 'inline-btn', onClick: () => { closeModal(); resolve(false); } },
             { label: '打出反制', className: 'inline-btn warn', onClick: () => { closeModal(); resolve(true); } }
-          ]);
+          ], { closeOnMask: false });
         });
       }
-      await sleep(280 / getFxSettings().speed);
-      return shouldAiCounter(appState.engine, reactor, sourceCard.id);
+      await sleep(220 / getFxSettings().speed);
+      return shouldAiCounter(state.engine, reactor, sourceCard.id);
     }
   });
 
-  switchScreen('game');
+  setScreen('game');
   render();
   showTutorialOnce();
-  appState.engine.startTurn().then(() => maybeRunAi());
+  state.engine.startTurn().then(() => maybeRunAi());
 }
 
-document.getElementById('btn-rules').addEventListener('click', showRules);
-document.getElementById('btn-settings').addEventListener('click', () => showSettings(getFxSettings(), saveSettings));
+window.addEventListener('error', (event) => {
+  state.lastError = event.message || '未知运行时错误';
+  render();
+});
+
+document.getElementById('btn-rules').addEventListener('click', openRules);
+document.getElementById('btn-settings').addEventListener('click', openSettings);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && (state.showRules || state.showSettings)) {
+    state.showRules = false;
+    state.showSettings = false;
+    render();
+  }
+});
 
 loadSettings();
-switchScreen('menu');
+setScreen('menu');
 render();
