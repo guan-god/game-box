@@ -78,6 +78,7 @@ main { min-height: calc(100vh - 96px); }
   background: #ffffff11; border: 1px solid #ffffff20; border-radius: 10px; padding: 8px; margin-bottom: 8px;
 }
 .player-chip.current { border-color: var(--accent2); box-shadow: 0 0 0 1px var(--accent2); }
+.player-chip.targetable { border-color: #73ffa0; box-shadow: 0 0 0 1px #73ffa0; }
 .player-chip.dead { opacity: .5; filter: grayscale(.5); }
 .player-chip .meta { color: var(--muted); font-size: 12px; }
 
