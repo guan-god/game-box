@@ -45,6 +45,22 @@
       gap: 10px;
     }
     strong { color: #9fd4ff; }
+    .mode-buttons {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 1px solid #7cb7f3;
+      background: #1b3755;
+      color: #e8f3ff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover { background: #27507a; }
     kbd {
       background: #1f3349;
       border: 1px solid #6c9ccd;
@@ -64,18 +80,25 @@
         移动：<kbd>A</kbd> <kbd>D</kbd><br />
         高远球：<kbd>W</kbd><br />
         扣杀：<kbd>S</kbd><br />
-        放网：<kbd>Q</kbd>
+        放网：<kbd>Q</kbd><br />
+        跳跃：<kbd>E</kbd>（可空中扣杀）
       </div>
       <div>
         <strong>右侧玩家（蓝）</strong><br />
-        移动：<kbd>←</kbd> <kbd>→</kbd><br />
-        高远球：<kbd>↑</kbd><br />
-        扣杀：<kbd>↓</kbd><br />
-        放网：<kbd>/</kbd>
+        PVP 移动：<kbd>←</kbd> <kbd>→</kbd><br />
+        高远球：<kbd>↑</kbd>　扣杀：<kbd>↓</kbd>　放网：<kbd>/</kbd><br />
+        跳跃：<kbd>右 Shift</kbd>（PVP）<br />
+        人机模式下右侧由电脑自动控制。
       </div>
       <div>
         <strong>玩法说明</strong><br />
-        让羽毛球落在对方场地得分。先到 11 分获胜。每次发球会重置到本回合赢球方。
+        开球不会自动发出：每回合先站位，按任意击球键才发球。
+        加入顺/逆风、Perfect 击球、节奏槽、击球震屏与粒子特效，先到 11 分获胜。<br />
+        <div class="mode-buttons">
+          <button id="modePvp">切换 PVP</button>
+          <button id="modeCpu">切换 人机</button>
+          <button id="restartBtn">重新开始</button>
+        </div>
       </div>
     </section>
   </main>
