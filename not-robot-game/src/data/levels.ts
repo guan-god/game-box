@@ -1,15 +1,15 @@
-export type LevelMeta = { id:number; title:string; description:string; hints:[string,string] };
+export type LevelMeta = { id:number; title:string; description:string; hints:[string,string,string] };
 export const levels: LevelMeta[] = [
-{ id:1,title:'普通但不普通的复选框',description:'靠近会逃跑，别太急。',hints:['有些东西会在你太主动时后退。','等 2 秒或让它逃够 5 次再点。']},
-{ id:2,title:'请选择所有含有猫的图片',description:'语言陷阱题。',hints:['题干里的“含有猫”并不等于“字里有猫”。','只选真正的猫和机器人猫。']},
-{ id:3,title:'同意按钮逃跑',description:'真正同意来自谨慎。',hints:['先表达拒绝，系统会尊重你。','连续点“不同意”3 次会出现新按钮。']},
-{ id:4,title:'阅读协议',description:'至少假装读到底。',hints:['滚到底才算“认真”。','到底后稍等 1 秒。']},
-{ id:5,title:'滑块验证',description:'接近终点会回弹。',hints:['90% 已经很努力了。','松手后找小字“其实这样也算”。']},
-{ id:6,title:'找出真正的按钮',description:'观察微小差异。',hints:['真按钮很小且不显眼。','文本是“继续 ”（末尾空格）。']},
-{ id:7,title:'输入验证码',description:'输入框有自己的脾气。',hints:['先控制输入框，再输入内容。','点“锁定大小写”后输入 HUMAN。']},
-{ id:8,title:'反向心理测试',description:'忍住就是胜利。',hints:['有时“不操作”才是操作。','5 秒内别点按钮。']},
-{ id:9,title:'拖拽排序',description:'人类的一天并不规律。',hints:['先后悔再努力。','再睡一会儿→后悔→吃饭→学习→发呆→睡觉。']},
-{ id:10,title:'真假授权开关',description:'只选合理虚构授权。',hints:['别全选，系统会怀疑你。','只开“虚构数据”和“每天夸我”。']},
-{ id:11,title:'看不见的验证码',description:'悬浮查看记忆。',hints:['把鼠标放在验证码区域。','停留更久会更清晰：NOTBOT。']},
-{ id:12,title:'最终验证',description:'快不一定对。',hints:['大按钮是诱饵。','角落里有慢速通道。']},
+{ id:1,title:'复选框围剿',description:'任务：勾选“我不是机器人”。',hints:['先别急着点。','观察谁在变化、谁在装。','文字最标准的目标，通常更可信。']},
+{ id:2,title:'九宫格猫猫审判',description:'任务：选择所有真正的猫。',hints:['别被名字带节奏。','题目问本体，不问联想。','看起来像捷径的选项，常常是坑。']},
+{ id:3,title:'同意按钮保卫战',description:'任务：点击“同意”。',hints:['太主动的按钮值得怀疑。','观察移动节奏，别猛点。','真正目标通常会先“躲你”。']},
+{ id:4,title:'协议阅读陷阱',description:'任务：滚动到底并勾选。',hints:['别太早庆祝到底。','系统喜欢加“最后一行”。','能被提前点击的，常常不是终点。']},
+{ id:5,title:'滑块路障',description:'任务：拖到最右侧。',hints:['别一路硬推。','观察阻碍变化时机。','节奏比力量更重要。']},
+{ id:6,title:'按钮洪水',description:'任务：点击唯一正确“继续”。',hints:['文字细节很关键。','热情推荐不一定真推荐。','标点和空格会暴露身份。']},
+{ id:7,title:'验证码输入干扰',description:'任务：输入验证码。',hints:['问题可能不在你。','输入框不一定站在你这边。','先让系统停止“帮忙”。']},
+{ id:8,title:'不要点按钮',description:'任务：等待并保持克制。',hints:['这关操作越少越好。','越像捷径越危险。','耐心本身就是答案的一部分。']},
+{ id:9,title:'排序时空错乱',description:'任务：按规则排序卡片。',hints:['先排大顺序。','别急着验证。','“像验证”的按钮不一定是真验证。']},
+{ id:10,title:'授权选项轰炸',description:'任务：只保留安全授权。',hints:['授权不是越多越好。','先减法，再确认。','系统想要的，不一定该给。']},
+{ id:11,title:'验证码遮挡战',description:'任务：看清并输入验证码。',hints:['清晰度会变化。','越“备用”的越可疑。','先确认区域，再输入。']},
+{ id:12,title:'最终按钮冷却',description:'任务：点击“完成验证”。',hints:['最后一步常输给手快。','先观察状态变化。','冷静后再出手，成功率更高。']},
 ];
