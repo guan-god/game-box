@@ -1,0 +1,1 @@
+import { Move } from '../game/types';export default function MoveLog({moves}:{moves:Move[]}){return <div className='panel'><h4>走法</h4><div className='log'>{moves.slice(-20).map((m,i)=><div key={i}>{m.from.join(',')} → {m.to.join(',')} {m.jump?'(跳)':''}</div>)}</div></div>}
