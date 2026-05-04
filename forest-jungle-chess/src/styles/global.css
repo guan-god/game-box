@@ -10,3 +10,5 @@ aside .panel{padding:10px;margin-bottom:12px}.panel h4,.panel h3{margin:4px 0 8p
 .rulesSec{margin:0 18px 18px;background:#fffdf7;border:1px solid #edcd89;border-radius:16px;padding:16px}.ruleGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:12px}
 .modal{position:fixed;inset:0;background:#0005;display:grid;place-items:center}.jumpLand{animation:jumpFlash .45s}@keyframes jumpFlash{50%{filter:brightness(1.45)}}
 @media(max-width:1120px){.wrap{grid-template-columns:1fr}.board{grid-template-columns:repeat(7,minmax(42px,1fr));grid-template-rows:repeat(9,minmax(42px,1fr))}.ruleGrid{grid-template-columns:1fr}}
+
+.boardArena{display:grid;grid-template-columns:90px auto 90px;align-items:center;gap:12px;justify-content:center}.capSide{min-height:180px;border:2px dashed #c7d2fe;border-radius:12px;padding:8px;font-size:12px;text-align:center;color:#666}.capSide.red{border-color:#fecaca}.capSide.blue{border-color:#bfdbfe}.cellLabel{font-size:11px;color:#7c4a20;opacity:.85}
