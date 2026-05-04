@@ -16,3 +16,5 @@ aside .panel{padding:10px;margin-bottom:12px}.panel h4,.panel h3{margin:4px 0 8p
 .burst{animation:burst .35s ease}@keyframes burst{0%{transform:scale(.94)}70%{transform:scale(1.04)}100%{transform:scale(1)}}
 
 .ruleCard{background:#fffdf2}.info{border-left:4px solid #8ab4f8}.info.blue{background:#edf3ff}.info.cyan{background:#ebfbff;border-left-color:#38bdf8}.info.purple{background:#f5f0ff;border-left-color:#a78bfa}
+
+.miniList{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:center}.mini{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#fff;border:1px solid #ddd;font-size:12px;font-weight:700}

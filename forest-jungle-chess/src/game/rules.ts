@@ -19,6 +19,14 @@ if(p.type!=='rat'&&one&&isRiverCell(r,c))return false;
 if(!occ) return true; return canCapture(board,p,occ,g);
 };
 export const getLegalMoves=(board:Piece[],p:Piece,g:GameState)=>{const dirs:[[number,number],[number,number],[number,number],[number,number]]=[[1,0],[-1,0],[0,1],[0,-1]];const out:Move[]=[]; for(const d of dirs){const nr=p.row+d[0],nc=p.col+d[1]; if(canMoveTo(board,p,[nr,nc],g)){const cap=at(board,nr,nc);out.push({pieceId:p.id,from:[p.row,p.col],to:[nr,nc],captureId:cap?.id});} const j=getJumpMoveForLionTiger(board,p,d); if(j&&canMoveTo(board,p,j,g)){const cap=at(board,j[0],j[1]); out.push({pieceId:p.id,from:[p.row,p.col],to:j,captureId:cap?.id,jump:true});}}
-if(p.type==='wolf'&&!g.powerUsed.includes(p.id)){for(const [dr,dc] of [[2,0],[-2,0],[0,2],[0,-2]] as [number,number][]) {const nr=p.row+dr,nc=p.col+dc,mr=p.row+dr/2,mc=p.col+dc/2; if(inb(nr,nc)&&!at(board,nr,nc)&&!at(board,mr,mc)&&!isRiverCell(nr,nc)&&!isRiverCell(mr,mc)&&!isOwnDen(p,nr,nc)) out.push({pieceId:p.id,from:[p.row,p.col],to:[nr,nc]});}} return out;};
-export const applyMove=(board:Piece[],m:Move,g:GameState)=>{const nb=board.map(p=>({...p}));const p=nb.find(x=>x.id===m.pieceId)!; if(m.captureId){const d=nb.find(x=>x.id===m.captureId)!; d.alive=false; g.captured[d.side].push(d); g.noCapture=0;} else g.noCapture++; p.row=m.to[0];p.col=m.to[1];g.moves.push(m); if(Math.abs(m.to[0]-m.from[0])+Math.abs(m.to[1]-m.from[1])===2) g.powerUsed.push(p.id); g.turn=g.turn==='red'?'blue':'red'; return nb;};
+
+// 额外能力（一次性）: 象冲锋2格、狗斜移1格、猫斜移1格、豹突进2格
+if(!g.powerUsed.includes(p.id)){
+  const add=(nr:number,nc:number)=>{if(inb(nr,nc)&&!at(board,nr,nc)&&!isOwnDen(p,nr,nc)&&!isRiverCell(nr,nc)) out.push({pieceId:p.id,from:[p.row,p.col],to:[nr,nc]});};
+  if(p.type==='elephant'||p.type==='leopard'){for(const [dr,dc] of [[2,0],[-2,0],[0,2],[0,-2]] as [number,number][]) {const mr=p.row+dr/2,mc=p.col+dc/2; if(inb(mr,mc)&&!at(board,mr,mc)) add(p.row+dr,p.col+dc);} }
+  if(p.type==='dog'||p.type==='cat'){for(const [dr,dc] of [[1,1],[1,-1],[-1,1],[-1,-1]] as [number,number][]) add(p.row+dr,p.col+dc);} 
+}
+
+return out;};
+export const applyMove=(board:Piece[],m:Move,g:GameState)=>{const nb=board.map(p=>({...p}));const p=nb.find(x=>x.id===m.pieceId)!; if(m.captureId){const d=nb.find(x=>x.id===m.captureId)!; d.alive=false; g.captured[d.side].push(d); g.noCapture=0;} else g.noCapture++; p.row=m.to[0];p.col=m.to[1];g.moves.push(m); const md=Math.abs(m.to[0]-m.from[0])+Math.abs(m.to[1]-m.from[1]); if(md>1||Math.abs(m.to[0]-m.from[0])===1&&Math.abs(m.to[1]-m.from[1])===1) g.powerUsed.push(p.id); g.turn=g.turn==='red'?'blue':'red'; return nb;};
 export const checkWinner=(board:Piece[],g:GameState)=>{const red=board.filter(p=>p.alive&&p.side==='red'),blue=board.filter(p=>p.alive&&p.side==='blue'); if(red.some(p=>isEnemyDen(p,p.row,p.col)))return 'red'; if(blue.some(p=>isEnemyDen(p,p.row,p.col)))return 'blue'; if(!red.length)return 'blue'; if(!blue.length)return 'red'; const t=board.filter(p=>p.alive&&p.side===g.turn); if(!t.some(p=>getLegalMoves(board,p,g).length)) return g.turn==='red'?'blue':'red'; if(g.config.draw80&&g.noCapture>=80)return 'draw'; return undefined;};
