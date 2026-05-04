@@ -1,0 +1,1 @@
+export default function TrapLayer({traps,onHit}:{traps:{x:number;y:number;w:number;h:number}[];onHit:()=>void}){return <>{traps.map((t,i)=><div key={i} className='trap' style={{left:t.x,top:t.y,width:t.w,height:t.h}} onMouseEnter={onHit}/>)}</>}
