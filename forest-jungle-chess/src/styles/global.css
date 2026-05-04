@@ -1,0 +1,24 @@
+body{margin:0;font-family:'PingFang SC','Microsoft Yahei',system-ui;background:linear-gradient(180deg,#fffaf0 0%,#fff7df 100%);color:#3b2a1a}
+.topbar{height:66px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;background:#fff;border-bottom:1px solid #f0d9a6}.brand{font-size:28px;font-weight:700;color:#9d4f0f}.topbar button{background:#f59e0b;color:#fff;border:0;border-radius:10px;padding:10px 16px}
+.wrap{display:grid;grid-template-columns:minmax(720px,1fr) 360px;gap:18px;padding:18px}.mainCard,.panel{background:#fffdf7;border:1px solid #edcd89;border-radius:16px;box-shadow:0 6px 20px #b98f3b22}
+.mainCard{padding:16px}.versus{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:30px;color:#b45b13}.blueTag,.redTag{padding:8px 14px;border-radius:999px;font-size:16px}.blueTag{background:#dbeafe;color:#1d4ed8}.redTag{background:#ffe4e6;color:#dc2626}
+.boardFrame{padding:14px;border-radius:20px;background:linear-gradient(145deg,#a94f10,#8b3a0a);box-shadow:inset 0 0 0 2px #d59446}
+.board{display:grid;grid-template-columns:repeat(7,72px);grid-template-rows:repeat(9,72px);gap:3px;background:#f0d880;padding:8px;border-radius:14px}.cell{border:1px solid #efc420;border-radius:9px}.land{background:#f7e086}.river{background:linear-gradient(160deg,#59b7df,#4ec0d4)}.trap{background:#ffc6c6}.den{background:#ffefad}.legal{outline:3px solid #63b26f}.path{box-shadow:inset 0 0 0 3px #ff9f1c}
+.piece{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:50%;line-height:1;transition:transform .15s}.piece.red{background:#fff1f2;border:2px solid #f87171}.piece.blue{background:#eff6ff;border:2px solid #60a5fa}.piece b{font-size:13px}.piece small{font-size:10px;color:#555}.piece.sel{box-shadow:0 0 0 3px #f59e0b}.piece:hover{transform:scale(1.06)}
+.piece em{font-style:normal;font-size:10px;line-height:1}
+aside .panel{padding:10px;margin-bottom:12px}.panel h4,.panel h3{margin:4px 0 8px}.log{max-height:220px;overflow:auto;font-size:13px}
+.extra button{display:block;width:100%;margin-top:6px}.extra small{display:block;margin-top:6px;color:#555}
+.panel textarea{width:100%;margin-top:6px;border-radius:8px;border:1px solid #e2c17f;padding:6px}
+.ai,.fx,.extra,.winner{padding:8px 10px;border-radius:10px;margin:8px 0}.ai{background:#dbeafe;color:#1e3a8a}.fx{background:#ecfdf5;color:#166534}.extra{background:#fff7ed;color:#9a3412}.winner{background:#dcfce7;color:#166534}
+.hitFx{box-shadow:0 0 0 2px #ef4444 inset}.shieldFx{box-shadow:0 0 0 2px #60a5fa inset}.jumpFx{box-shadow:0 0 0 2px #f59e0b inset}.cardFx{box-shadow:0 0 0 2px #a78bfa inset}.winFx{box-shadow:0 0 0 2px #22c55e inset}
+.rulesSec{margin:0 18px 18px;background:#fffdf7;border:1px solid #edcd89;border-radius:16px;padding:16px}.ruleGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:12px}
+.modal{position:fixed;inset:0;background:#0005;display:grid;place-items:center}.jumpLand{animation:jumpFlash .45s}@keyframes jumpFlash{50%{filter:brightness(1.45)}}
+@media(max-width:1120px){.wrap{grid-template-columns:1fr}.board{grid-template-columns:repeat(7,minmax(42px,1fr));grid-template-rows:repeat(9,minmax(42px,1fr))}.ruleGrid{grid-template-columns:1fr}}
+
+.boardArena{display:grid;grid-template-columns:90px auto 90px;align-items:center;gap:12px;justify-content:center}.capSide{min-height:180px;border:2px dashed #c7d2fe;border-radius:12px;padding:8px;font-size:12px;text-align:center;color:#666}.capSide.red{border-color:#fecaca}.capSide.blue{border-color:#bfdbfe}.cellLabel{font-size:11px;color:#7c4a20;opacity:.85}
+
+.burst{animation:burst .35s ease}@keyframes burst{0%{transform:scale(.94)}70%{transform:scale(1.04)}100%{transform:scale(1)}}
+
+.ruleCard{background:#fffdf2}.info{border-left:4px solid #8ab4f8}.info.blue{background:#edf3ff}.info.cyan{background:#ebfbff;border-left-color:#38bdf8}.info.purple{background:#f5f0ff;border-left-color:#a78bfa}
+
+.miniList{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:center}.mini{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#fff;border:1px solid #ddd;font-size:12px;font-weight:700}
