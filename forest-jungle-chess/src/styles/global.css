@@ -8,7 +8,9 @@ body{margin:0;font-family:'PingFang SC','Microsoft Yahei',system-ui;background:l
 .piece em{font-style:normal;font-size:10px;line-height:1}
 aside .panel{padding:10px;margin-bottom:12px}.panel h4,.panel h3{margin:4px 0 8px}.log{max-height:220px;overflow:auto;font-size:13px}
 .extra button{display:block;width:100%;margin-top:6px}.extra small{display:block;margin-top:6px;color:#555}
+.panel textarea{width:100%;margin-top:6px;border-radius:8px;border:1px solid #e2c17f;padding:6px}
 .ai,.fx,.extra,.winner{padding:8px 10px;border-radius:10px;margin:8px 0}.ai{background:#dbeafe;color:#1e3a8a}.fx{background:#ecfdf5;color:#166534}.extra{background:#fff7ed;color:#9a3412}.winner{background:#dcfce7;color:#166534}
+.hitFx{box-shadow:0 0 0 2px #ef4444 inset}.shieldFx{box-shadow:0 0 0 2px #60a5fa inset}.jumpFx{box-shadow:0 0 0 2px #f59e0b inset}.cardFx{box-shadow:0 0 0 2px #a78bfa inset}.winFx{box-shadow:0 0 0 2px #22c55e inset}
 .rulesSec{margin:0 18px 18px;background:#fffdf7;border:1px solid #edcd89;border-radius:16px;padding:16px}.ruleGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:12px}
 .modal{position:fixed;inset:0;background:#0005;display:grid;place-items:center}.jumpLand{animation:jumpFlash .45s}@keyframes jumpFlash{50%{filter:brightness(1.45)}}
 @media(max-width:1120px){.wrap{grid-template-columns:1fr}.board{grid-template-columns:repeat(7,minmax(42px,1fr));grid-template-rows:repeat(9,minmax(42px,1fr))}.ruleGrid{grid-template-columns:1fr}}
