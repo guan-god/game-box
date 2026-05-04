@@ -1,0 +1,1 @@
+export default function RuleModal({open,onClose}:{open:boolean;onClose:()=>void}){if(!open)return null;return <div className='modal' onClick={onClose}><div className='panel' onClick={e=>e.stopPropagation()}><h3>规则</h3><p>鼠可入河、狮虎可跳河、入敌兽穴获胜。</p></div></div>}
