@@ -1,0 +1,1 @@
+import { Piece } from '../game/types';import { EMOJI } from '../game/constants';export default function CapturedPieces({red,blue}:{red:Piece[];blue:Piece[]}){return <div className='panel'><h4>被吃棋子</h4><p>红方: {red.map(p=>EMOJI[p.type]).join(' ')}</p><p>蓝方: {blue.map(p=>EMOJI[p.type]).join(' ')}</p></div>}
