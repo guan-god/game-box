@@ -14,3 +14,5 @@ aside .panel{padding:10px;margin-bottom:12px}.panel h4,.panel h3{margin:4px 0 8p
 .boardArena{display:grid;grid-template-columns:90px auto 90px;align-items:center;gap:12px;justify-content:center}.capSide{min-height:180px;border:2px dashed #c7d2fe;border-radius:12px;padding:8px;font-size:12px;text-align:center;color:#666}.capSide.red{border-color:#fecaca}.capSide.blue{border-color:#bfdbfe}.cellLabel{font-size:11px;color:#7c4a20;opacity:.85}
 
 .burst{animation:burst .35s ease}@keyframes burst{0%{transform:scale(.94)}70%{transform:scale(1.04)}100%{transform:scale(1)}}
+
+.ruleCard{background:#fffdf2}.info{border-left:4px solid #8ab4f8}.info.blue{background:#edf3ff}.info.cyan{background:#ebfbff;border-left-color:#38bdf8}.info.purple{background:#f5f0ff;border-left-color:#a78bfa}
