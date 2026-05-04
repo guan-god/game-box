@@ -11,9 +11,10 @@ export const canCapture=(board:Piece[],a:Piece,d:Piece,g:GameState)=>{if(a.side=
 export const isRatBlockingRiverJump=(board:Piece[],from:[number,number],to:[number,number])=>{const [fr,fc]=from,[tr,tc]=to; if(fr===tr){const min=Math.min(fc,tc),max=Math.max(fc,tc); for(let c=min+1;c<max;c++) if(isRiverCell(fr,c)&&at(board,fr,c)?.type==='rat') return true;} else if(fc===tc){const min=Math.min(fr,tr),max=Math.max(fr,tr); for(let r=min+1;r<max;r++) if(isRiverCell(r,fc)&&at(board,r,fc)?.type==='rat') return true;} return false;};
 export const getJumpMoveForLionTiger=(board:Piece[],p:Piece,d:[number,number])=>{if(!(p.type==='lion'||p.type==='tiger'))return null; let r=p.row+d[0],c=p.col+d[1]; if(!inb(r,c)||!isRiverCell(r,c))return null; while(inb(r,c)&&isRiverCell(r,c)){r+=d[0];c+=d[1];} if(!inb(r,c))return null; if(isRatBlockingRiverJump(board,[p.row,p.col],[r,c]))return null; return [r,c] as [number,number];};
 export const canMoveTo=(board:Piece[],p:Piece,t:[number,number],g:GameState)=>{const [r,c]=t;if(!inb(r,c)||isOwnDen(p,r,c))return false; const occ=at(board,r,c); if(occ?.side===p.side)return false; const dr=Math.abs(r-p.row),dc=Math.abs(c-p.col); const one=dr+dc===1;
-if(p.type!=='rat'&&isRiverCell(r,c)){
-  const j=getJumpMoveForLionTiger(board,p,[Math.sign(r-p.row),Math.sign(c-p.col)] as [number,number]); if(!j||j[0]!==r||j[1]!==c) return false;
-}else if(!one) return false;
+if(!one){
+  const j=getJumpMoveForLionTiger(board,p,[Math.sign(r-p.row),Math.sign(c-p.col)] as [number,number]);
+  if(!j||j[0]!==r||j[1]!==c) return false;
+}
 if(p.type!=='rat'&&one&&isRiverCell(r,c))return false;
 if(!occ) return true; return canCapture(board,p,occ,g);
 };
