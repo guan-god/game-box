@@ -1,0 +1,2 @@
+import { GameState } from '../game/types';import MoveLog from './MoveLog';import CapturedPieces from './CapturedPieces';
+export default function SidePanel({state,onRestart,onUndo,onRules}:{state:GameState;onRestart:()=>void;onUndo:()=>void;onRules:()=>void}){return <aside><div className='panel'><h3>当前回合: {state.turn==='red'?'红方':'蓝方'}</h3><button onClick={onRestart}>重新开始</button><button onClick={onUndo}>悔棋</button><button onClick={onRules}>规则</button></div><CapturedPieces red={state.captured.red} blue={state.captured.blue}/><MoveLog moves={state.moves}/></aside>}
