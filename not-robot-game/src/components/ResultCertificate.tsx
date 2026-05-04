@@ -1,0 +1,1 @@
+export default function ResultCertificate({names,fail,prank,hint,reset}:{names:string[];fail:number;prank:number;hint:number;reset:number}){return <div className='glass card'><h2>人类资格临时认证书</h2><p>本局关卡：{names.join('、')}</p><p>失败:{fail} 整蛊:{prank} 提示:{hint} 重置:{reset}</p></div>}
