@@ -45,7 +45,7 @@
 
           <label for="gameMode">选择玩法</label>
           <select id="gameMode" aria-label="选择数独玩法">
-            <option value="starlight" selected>星轨任务 · 连击收集星光</option>
+            <option value="bridge" selected>星桥数独 · 配对和为 10</option>
             <option value="classic">经典数独 · 纯粹挑战</option>
           </select>
 
@@ -66,16 +66,15 @@
           <button id="eraseBtn" class="tool-btn">⌫ 清除</button>
         </div>
 
-        <div id="missionCard" class="mission-card" aria-live="polite">
+        <div id="variantCard" class="variant-card" aria-live="polite">
           <div>
-            <span class="eyebrow">星轨任务</span>
-            <strong id="missionTitle">点亮目标数字</strong>
+            <span class="eyebrow">星桥规则</span>
+            <strong id="variantTitle">同符号双格相加为 10</strong>
           </div>
-          <div id="missionList" class="mission-list"></div>
-          <div class="mission-score">
-            <span>连击 <strong id="streak">0</strong></span>
-            <span>星光 <strong id="stars">0</strong></span>
-          </div>
+          <div id="bridgeList" class="bridge-list"></div>
+          <p id="variantHint" class="variant-hint">
+            棋盘上带有相同星桥符号的两个空格必须相加等于 10。
+          </p>
         </div>
 
         <div id="message" class="message" role="status" aria-live="polite">
@@ -118,12 +117,12 @@
           <li>错误达到 3 次本局结束；提示会自动填入一个正确答案。</li>
         </ol>
         <div class="variant-rule">
-          <strong>创新玩法：星轨任务</strong>
+          <strong>创新玩法：星桥数独</strong>
           <p>
-            系统会随机挑选 3 个目标数字。每填对一个目标数字就能点亮星光，
-            连续答对会增加连击奖励；当 3
-            个目标全部点亮时，会获得一枚“星轨徽章”。
-            如果只想安静解题，可以切换到“经典数独”。
+            这不是计分挑战，而是多了一条真正会影响推理的规则：棋盘上会出现几组
+            “星桥”标记。带有相同符号的两个格子是一对，它们填入的数字必须相加等于
+            10，例如 1+9、2+8、3+7 或
+            4+6。你可以先用这条线索缩小候选数，再结合行、列、宫继续推理。
           </p>
         </div>
       </div>

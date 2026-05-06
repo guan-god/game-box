@@ -12,6 +12,8 @@ const DIFFICULTY_NAMES = {
   hard: "困难",
   expert: "大师",
 };
+const BRIDGE_SYMBOLS = ["✦", "◆", "●", "▲"];
+const BRIDGE_TARGET = 10;
 
 const boardEl = document.querySelector("#board");
 const difficultyEl = document.querySelector("#difficulty");
@@ -28,11 +30,9 @@ const eraseBtn = document.querySelector("#eraseBtn");
 const rulesBtn = document.querySelector("#rulesBtn");
 const closeRulesBtn = document.querySelector("#closeRulesBtn");
 const rulesDialog = document.querySelector("#rulesDialog");
-const missionCard = document.querySelector("#missionCard");
-const missionListEl = document.querySelector("#missionList");
-const missionTitleEl = document.querySelector("#missionTitle");
-const streakEl = document.querySelector("#streak");
-const starsEl = document.querySelector("#stars");
+const variantCard = document.querySelector("#variantCard");
+const bridgeListEl = document.querySelector("#bridgeList");
+const variantTitleEl = document.querySelector("#variantTitle");
 const toastEl = document.querySelector("#toast");
 
 let solution = [];
@@ -47,10 +47,7 @@ let seconds = 0;
 let timerId = null;
 let history = [];
 let isGameOver = false;
-let missionTargets = [];
-let streak = 0;
-let stars = 0;
-let badgeAwarded = false;
+let bridgePairs = [];
 
 function createEmptyGrid(fillValue = 0) {
   return Array.from({ length: SIZE }, () => Array(SIZE).fill(fillValue));
@@ -194,78 +191,115 @@ function showToast(text) {
   );
 }
 
-function isStarlightMode() {
-  return gameModeEl.value !== "classic";
+function isBridgeMode() {
+  return gameModeEl.value === "bridge";
 }
 
-function initializeMission() {
-  streak = 0;
-  stars = 0;
-  badgeAwarded = false;
-  missionTargets = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, 3);
-  updateMission();
+function initializeBridges() {
+  bridgePairs = [];
+  if (!isBridgeMode()) {
+    updateBridgePanel();
+    return;
+  }
+
+  const empties = shuffle(
+    puzzle
+      .flatMap((row, rowIndex) =>
+        row.map((value, colIndex) => ({ row: rowIndex, col: colIndex, value })),
+      )
+      .filter(({ value }) => value === 0),
+  );
+  const used = new Set();
+
+  for (const symbol of BRIDGE_SYMBOLS) {
+    let picked = null;
+    for (let i = 0; i < empties.length && !picked; i += 1) {
+      const first = empties[i];
+      const firstKey = `${first.row}-${first.col}`;
+      if (used.has(firstKey)) continue;
+
+      for (let j = i + 1; j < empties.length; j += 1) {
+        const second = empties[j];
+        const secondKey = `${second.row}-${second.col}`;
+        if (used.has(secondKey)) continue;
+        if (
+          solution[first.row][first.col] + solution[second.row][second.col] !==
+          BRIDGE_TARGET
+        )
+          continue;
+        picked = [first, second];
+        break;
+      }
+    }
+
+    if (!picked) break;
+    const id = bridgePairs.length;
+    bridgePairs.push({
+      id,
+      symbol,
+      target: BRIDGE_TARGET,
+      cells: picked.map(({ row, col }) => ({ row, col })),
+    });
+    for (const cell of picked) used.add(`${cell.row}-${cell.col}`);
+  }
+
+  updateBridgePanel();
 }
 
-function getMissionProgress(number) {
-  let solved = 0;
-  let total = 0;
-  for (let row = 0; row < SIZE; row += 1) {
-    for (let col = 0; col < SIZE; col += 1) {
-      if (solution[row][col] !== number) continue;
-      total += 1;
-      if (player[row][col] === number) solved += 1;
+function getBridgeFor(row, col) {
+  for (const pair of bridgePairs) {
+    if (pair.cells.some((cell) => cell.row === row && cell.col === col)) {
+      return pair;
     }
   }
-  return { solved, total };
+  return null;
 }
 
-function updateMission() {
-  missionCard.hidden = !isStarlightMode();
-  streakEl.textContent = streak;
-  starsEl.textContent = stars;
+function getBridgeValues(pair) {
+  return pair.cells.map(({ row, col }) => player[row][col]);
+}
 
-  if (!isStarlightMode() || !missionTargets.length || !solution.length) return;
+function isBridgeComplete(pair) {
+  const values = getBridgeValues(pair);
+  return values.every(Boolean) && values[0] + values[1] === pair.target;
+}
 
-  missionTitleEl.textContent = badgeAwarded ? "星轨徽章已获得" : "点亮目标数字";
-  missionListEl.innerHTML = "";
-  let allComplete = true;
+function isBridgeConflict(pair) {
+  const values = getBridgeValues(pair);
+  return values.every(Boolean) && values[0] + values[1] !== pair.target;
+}
 
-  for (const number of missionTargets) {
-    const { solved, total } = getMissionProgress(number);
+function updateBridgePanel() {
+  variantCard.hidden = !isBridgeMode();
+  bridgeListEl.innerHTML = "";
+  if (!isBridgeMode()) return;
+
+  variantTitleEl.textContent = bridgePairs.length
+    ? "同符号双格相加为 10"
+    : "正在寻找星桥约束";
+
+  for (const pair of bridgePairs) {
+    const values = getBridgeValues(pair);
     const chip = document.createElement("span");
-    chip.className = "mission-chip";
-    chip.textContent = `${number} · ${solved}/${total}`;
-    if (total > 0 && solved === total) chip.classList.add("complete");
-    else allComplete = false;
-    missionListEl.append(chip);
-  }
-
-  if (allComplete && !badgeAwarded) {
-    badgeAwarded = true;
-    stars += 9;
-    starsEl.textContent = stars;
-    missionTitleEl.textContent = "星轨徽章已获得";
-    showToast("三条星轨全部点亮，获得星轨徽章！");
+    chip.className = "bridge-chip";
+    if (isBridgeComplete(pair)) chip.classList.add("complete");
+    if (isBridgeConflict(pair)) chip.classList.add("conflict");
+    chip.textContent = values.every(Boolean)
+      ? `${pair.symbol} ${values[0]}+${values[1]}=${values[0] + values[1]}`
+      : `${pair.symbol} 两格和为 ${pair.target}`;
+    bridgeListEl.append(chip);
   }
 }
 
-function rewardCorrectMove(number) {
-  if (!isStarlightMode()) return;
-  streak += 1;
-  if (missionTargets.includes(number)) {
-    stars += 2 + Math.floor(streak / 3);
-    showToast(`目标数字 ${number} 点亮！连击 ${streak}`);
-  } else if (streak > 1 && streak % 4 === 0) {
-    stars += 1;
-    showToast(`连续答对 ${streak} 次，额外获得 1 点星光`);
-  }
-  updateMission();
-}
-
-function resetStreak() {
-  if (!isStarlightMode()) return;
-  streak = 0;
-  updateMission();
+function getBridgeMessage(row, col) {
+  const pair = getBridgeFor(row, col);
+  if (!pair) return "漂亮！这个位置填写正确。";
+  if (isBridgeComplete(pair))
+    return `漂亮！${pair.symbol} 星桥也满足和为 ${pair.target}。`;
+  const values = getBridgeValues(pair);
+  if (values.some(Boolean))
+    return `${pair.symbol} 星桥还差另一格，记得两格相加要等于 ${pair.target}。`;
+  return "漂亮！这个位置填写正确。";
 }
 
 function getCellCoords(index) {
@@ -299,12 +333,17 @@ function renderBoard() {
     cell.type = "button";
     cell.className = "cell";
     cell.setAttribute("role", "gridcell");
+    const bridge = getBridgeFor(row, col);
     cell.setAttribute(
       "aria-label",
-      `第 ${row + 1} 行第 ${col + 1} 列${value ? `，数字 ${value}` : "，空白"}`,
+      `第 ${row + 1} 行第 ${col + 1} 列${value ? `，数字 ${value}` : "，空白"}${bridge ? `，${bridge.symbol} 星桥格，两格和为 ${bridge.target}` : ""}`,
     );
     cell.dataset.index = String(index);
 
+    if (bridge) {
+      cell.classList.add("bridge-cell", `bridge-${bridge.id}`);
+      if (isBridgeConflict(bridge)) cell.classList.add("bridge-conflict");
+    }
     if (given[row][col]) cell.classList.add("given");
     if (index === selectedIndex) cell.classList.add("selected");
     else if (isRelated(index, selectedIndex)) cell.classList.add("related");
@@ -315,7 +354,10 @@ function renderBoard() {
       cell.classList.add("hint");
 
     if (value) {
-      cell.textContent = value;
+      const valueEl = document.createElement("span");
+      valueEl.className = "cell-value";
+      valueEl.textContent = value;
+      cell.append(valueEl);
     } else if (notes[row][col].size) {
       const noteGrid = document.createElement("span");
       noteGrid.className = "notes";
@@ -325,6 +367,13 @@ function renderBoard() {
         noteGrid.append(mark);
       }
       cell.append(noteGrid);
+    }
+
+    if (bridge) {
+      const badge = document.createElement("span");
+      badge.className = "bridge-badge";
+      badge.textContent = bridge.symbol;
+      cell.append(badge);
     }
 
     cell.addEventListener("click", () => selectCell(index));
@@ -344,9 +393,6 @@ function pushHistory(row, col) {
     value: player[row][col],
     notes: new Set(notes[row][col]),
     mistakes,
-    streak,
-    stars,
-    badgeAwarded,
   });
 }
 
@@ -369,7 +415,7 @@ function placeNumber(number) {
     if (player[row][col]) player[row][col] = 0;
     if (notes[row][col].has(number)) notes[row][col].delete(number);
     else notes[row][col].add(number);
-    updateMission();
+    updateBridgePanel();
     setMessage("已更新笔记。再次点击同一数字可移除候选数。");
     renderBoard();
     return;
@@ -381,13 +427,12 @@ function placeNumber(number) {
   if (number !== solution[row][col]) {
     mistakes += 1;
     mistakesEl.textContent = mistakes;
-    resetStreak();
     setMessage(`这个数字不太对，再检查一下行、列或宫。`, "danger");
     if (mistakes >= 3) endGame(false);
   } else {
     removeNumberFromRelatedNotes(row, col, number);
-    rewardCorrectMove(number);
-    setMessage("漂亮！这个位置填写正确。", "success");
+    updateBridgePanel();
+    setMessage(getBridgeMessage(row, col), "success");
     if (isCompleted()) endGame(true);
   }
   renderBoard();
@@ -414,7 +459,7 @@ function eraseCell() {
   pushHistory(row, col);
   player[row][col] = 0;
   notes[row][col].clear();
-  updateMission();
+  updateBridgePanel();
   setMessage("已清除当前格。");
   renderBoard();
 }
@@ -434,7 +479,7 @@ function giveHint() {
   player[target.row][target.col] = solution[target.row][target.col];
   notes[target.row][target.col].clear();
   selectedIndex = target.row * SIZE + target.col;
-  updateMission();
+  updateBridgePanel();
   setMessage("提示已点亮一个正确答案。", "success");
   if (isCompleted()) endGame(true);
   renderBoard();
@@ -449,12 +494,9 @@ function undo() {
   player[last.row][last.col] = last.value;
   notes[last.row][last.col] = last.notes;
   mistakes = last.mistakes;
-  streak = last.streak;
-  stars = last.stars;
-  badgeAwarded = last.badgeAwarded;
   mistakesEl.textContent = mistakes;
   selectedIndex = last.row * SIZE + last.col;
-  updateMission();
+  updateBridgePanel();
   setMessage("已撤销上一步操作。");
   renderBoard();
 }
@@ -490,7 +532,7 @@ function newGame() {
   history = [];
   mistakesEl.textContent = mistakes;
   difficultyLabelEl.textContent = DIFFICULTY_NAMES[difficultyEl.value];
-  missionCard.hidden = !isStarlightMode();
+  variantCard.hidden = !isBridgeMode();
 
   setTimeout(() => {
     const generated = generatePuzzle(difficultyEl.value);
@@ -503,7 +545,7 @@ function newGame() {
     );
     selectedIndex = puzzle.flat().findIndex((value) => value === 0);
     if (selectedIndex < 0) selectedIndex = 0;
-    initializeMission();
+    initializeBridges();
     startTimer();
     setMessage("点选空格后输入数字，或开启笔记记录候选数。");
     renderBoard();
