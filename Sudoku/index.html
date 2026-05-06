@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>星河数独 Sudoku</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero-panel" aria-labelledby="game-title">
+        <div class="brand-row">
+          <span class="brand-mark">✦</span>
+          <span>星河数独</span>
+        </div>
+        <h1 id="game-title">在柔和星光里完成一局数独</h1>
+        <p class="subtitle">
+          清爽界面、智能提示、笔记模式与错误检查，让新手和高手都能轻松享受 9×9
+          逻辑挑战。
+        </p>
+
+        <div class="stats-grid" aria-label="游戏状态">
+          <article>
+            <span>难度</span>
+            <strong id="difficultyLabel">中等</strong>
+          </article>
+          <article>
+            <span>用时</span>
+            <strong id="timer">00:00</strong>
+          </article>
+          <article>
+            <span>错误</span>
+            <strong><span id="mistakes">0</span>/3</strong>
+          </article>
+        </div>
+
+        <div class="control-card">
+          <label for="difficulty">选择难度</label>
+          <select id="difficulty" aria-label="选择数独难度">
+            <option value="easy">轻松 · 40 格预填</option>
+            <option value="medium" selected>中等 · 34 格预填</option>
+            <option value="hard">困难 · 28 格预填</option>
+            <option value="expert">大师 · 24 格预填</option>
+          </select>
+          <button id="newGameBtn" class="primary-btn">新开一局</button>
+        </div>
+      </section>
+
+      <section class="game-panel" aria-label="数独棋盘">
+        <div class="toolbar">
+          <button id="noteBtn" class="tool-btn" aria-pressed="false">
+            ✎ 笔记
+          </button>
+          <button id="undoBtn" class="tool-btn">↶ 撤销</button>
+          <button id="hintBtn" class="tool-btn">💡 提示</button>
+          <button id="eraseBtn" class="tool-btn">⌫ 清除</button>
+        </div>
+
+        <div id="message" class="message" role="status" aria-live="polite">
+          点选空格后输入数字，或开启笔记记录候选数。
+        </div>
+
+        <div
+          id="board"
+          class="sudoku-board"
+          role="grid"
+          aria-label="9乘9数独棋盘"
+        ></div>
+
+        <div class="number-pad" aria-label="数字键盘">
+          <button data-number="1">1</button>
+          <button data-number="2">2</button>
+          <button data-number="3">3</button>
+          <button data-number="4">4</button>
+          <button data-number="5">5</button>
+          <button data-number="6">6</button>
+          <button data-number="7">7</button>
+          <button data-number="8">8</button>
+          <button data-number="9">9</button>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="game.js"></script>
+  </body>
+</html>
