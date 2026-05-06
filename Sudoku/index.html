@@ -46,6 +46,8 @@
           <label for="gameMode">选择玩法</label>
           <select id="gameMode" aria-label="选择数独玩法">
             <option value="bridge" selected>星桥数独 · 配对和为 10</option>
+            <option value="chain">星链数独 · 三格严格递增</option>
+            <option value="master">星穹大师 · 星桥 + 星链</option>
             <option value="classic">经典数独 · 纯粹挑战</option>
           </select>
 
@@ -71,7 +73,7 @@
             <span class="eyebrow">星桥规则</span>
             <strong id="variantTitle">同符号双格相加为 10</strong>
           </div>
-          <div id="bridgeList" class="bridge-list"></div>
+          <div id="constraintList" class="constraint-list"></div>
           <p id="variantHint" class="variant-hint">
             棋盘上带有相同星桥符号的两个空格必须相加等于 10。
           </p>
@@ -116,13 +118,33 @@
           <li>点击空格，再点下方数字；不确定时开启“笔记”记录候选数。</li>
           <li>错误达到 3 次本局结束；提示会自动填入一个正确答案。</li>
         </ol>
+        <div class="rules-demo" aria-hidden="true">
+          <div class="demo-board">
+            <span class="demo-cell demo-bridge-a">✦<b>3</b></span>
+            <span class="demo-cell demo-chain-1">①<b>2</b></span>
+            <span class="demo-cell demo-chain-2">②<b>5</b></span>
+            <span class="demo-cell demo-bridge-b">✦<b>7</b></span>
+            <span class="demo-cell demo-chain-3">③<b>8</b></span>
+            <span class="demo-cell">9</span>
+          </div>
+          <div class="demo-caption">
+            动画示例：星桥配对求和，星链按 ①→②→③ 递增
+          </div>
+        </div>
         <div class="variant-rule">
-          <strong>创新玩法：星桥数独</strong>
+          <strong>创新玩法 1：星桥数独</strong>
           <p>
-            这不是计分挑战，而是多了一条真正会影响推理的规则：棋盘上会出现几组
-            “星桥”标记。带有相同符号的两个格子是一对，它们填入的数字必须相加等于
-            10，例如 1+9、2+8、3+7 或
-            4+6。你可以先用这条线索缩小候选数，再结合行、列、宫继续推理。
+            带有相同符号的两个格子是一对，它们填入的数字必须相加等于 10， 例如
+            1+9、2+8、3+7 或 4+6。它会直接改变候选数推理，而不是增加得分。
+          </p>
+          <strong>更难玩法 2：星链数独</strong>
+          <p>
+            同一条星链会标出 ①、②、③ 三个格子，数字必须严格递增：① &lt; ② &lt;
+            ③。 这会迫使你同时考虑大小关系、行列宫限制和候选数范围。
+          </p>
+          <strong>大师玩法：星穹大师</strong>
+          <p>
+            同一局里同时出现星桥和星链，既要满足配对求和，又要满足三格递增，难度更高。
           </p>
         </div>
       </div>

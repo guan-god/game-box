@@ -283,14 +283,14 @@ button:active {
   text-transform: uppercase;
 }
 
-.bridge-list {
+.constraint-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
 }
 
-.bridge-chip {
+.constraint-chip {
   min-width: 70px;
   padding: 8px 10px;
   border-radius: 999px;
@@ -300,12 +300,12 @@ button:active {
   font-weight: 900;
 }
 
-.bridge-chip.complete {
+.constraint-chip.complete {
   color: #047857;
   background: #d1fae5;
 }
 
-.bridge-chip.conflict {
+.constraint-chip.conflict {
   color: #b91c1c;
   background: #fee2e2;
 }
@@ -419,25 +419,51 @@ button:active {
   box-shadow: inset 0 0 0 3px rgba(239, 68, 68, 0.36);
 }
 
+.cell.chain-cell {
+  background-image: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.16),
+    rgba(255, 255, 255, 0)
+  );
+  box-shadow: inset 0 0 0 3px rgba(245, 158, 11, 0.24);
+}
+
+.cell.chain-conflict {
+  background: #fff7ed;
+  box-shadow: inset 0 0 0 3px rgba(249, 115, 22, 0.42);
+}
+
 .cell-value {
   position: relative;
   z-index: 1;
 }
 
-.bridge-badge {
+.bridge-badge,
+.chain-badge {
   position: absolute;
-  top: 5px;
-  left: 6px;
   display: grid;
   place-items: center;
-  width: 1.15rem;
   height: 1.15rem;
   border-radius: 999px;
   color: white;
-  background: linear-gradient(135deg, var(--primary), var(--accent));
   font-size: 0.72rem;
   font-weight: 900;
   box-shadow: 0 4px 10px rgba(79, 70, 229, 0.28);
+}
+
+.bridge-badge {
+  top: 5px;
+  left: 6px;
+  width: 1.15rem;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+}
+
+.chain-badge {
+  right: 5px;
+  bottom: 5px;
+  min-width: 1.65rem;
+  padding: 0 0.22rem;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
 }
 
 .notes {
@@ -545,6 +571,63 @@ button:active {
   font-weight: 700;
 }
 
+.rules-demo {
+  margin: 18px 0;
+  padding: 14px;
+  border-radius: 22px;
+  background: #f8fafc;
+  border: 1px solid rgba(124, 58, 237, 0.14);
+}
+
+.demo-board {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.demo-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 54px;
+  border-radius: 16px;
+  color: #312e81;
+  background: white;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 2px rgba(124, 58, 237, 0.12);
+  overflow: hidden;
+}
+
+.demo-cell b {
+  font-size: 1.4rem;
+}
+
+.demo-bridge-a,
+.demo-bridge-b {
+  animation: bridgePulse 2.2s ease-in-out infinite;
+}
+
+.demo-chain-1,
+.demo-chain-2,
+.demo-chain-3 {
+  animation: chainStep 2.4s ease-in-out infinite;
+}
+
+.demo-chain-2 {
+  animation-delay: 0.22s;
+}
+
+.demo-chain-3 {
+  animation-delay: 0.44s;
+}
+
+.demo-caption {
+  margin-top: 10px;
+  color: #64748b;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
 .close-btn {
   position: absolute;
   top: 18px;
@@ -556,6 +639,29 @@ button:active {
   background: #f1f5f9;
   font-size: 1.45rem;
   font-weight: 900;
+}
+
+@keyframes bridgePulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 2px rgba(6, 182, 212, 0.22);
+    transform: translateY(0);
+  }
+  50% {
+    box-shadow: inset 0 0 0 4px rgba(6, 182, 212, 0.5);
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes chainStep {
+  0%,
+  100% {
+    background: #ffffff;
+  }
+  45% {
+    background: #fef3c7;
+    transform: scale(1.05);
+  }
 }
 
 @keyframes shake {
@@ -611,7 +717,7 @@ button:active {
   .variant-card {
     grid-template-columns: 1fr;
   }
-  .bridge-list {
+  .constraint-list {
     justify-content: flex-start;
   }
   .bridge-badge {
@@ -620,6 +726,13 @@ button:active {
     width: 0.95rem;
     height: 0.95rem;
     font-size: 0.62rem;
+  }
+  .chain-badge {
+    right: 3px;
+    bottom: 3px;
+    min-width: 1.35rem;
+    height: 0.95rem;
+    font-size: 0.58rem;
   }
   .cell {
     font-size: 1.55rem;

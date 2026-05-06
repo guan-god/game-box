@@ -13,7 +13,10 @@ const DIFFICULTY_NAMES = {
   expert: "大师",
 };
 const BRIDGE_SYMBOLS = ["✦", "◆", "●", "▲"];
+const CHAIN_SYMBOLS = ["A", "B", "C"];
+const CHAIN_BADGES = ["①", "②", "③"];
 const BRIDGE_TARGET = 10;
+const CHAIN_LENGTH = 3;
 
 const boardEl = document.querySelector("#board");
 const difficultyEl = document.querySelector("#difficulty");
@@ -31,8 +34,9 @@ const rulesBtn = document.querySelector("#rulesBtn");
 const closeRulesBtn = document.querySelector("#closeRulesBtn");
 const rulesDialog = document.querySelector("#rulesDialog");
 const variantCard = document.querySelector("#variantCard");
-const bridgeListEl = document.querySelector("#bridgeList");
+const constraintListEl = document.querySelector("#constraintList");
 const variantTitleEl = document.querySelector("#variantTitle");
+const variantHintEl = document.querySelector("#variantHint");
 const toastEl = document.querySelector("#toast");
 
 let solution = [];
@@ -48,6 +52,7 @@ let timerId = null;
 let history = [];
 let isGameOver = false;
 let bridgePairs = [];
+let chainGroups = [];
 
 function createEmptyGrid(fillValue = 0) {
   return Array.from({ length: SIZE }, () => Array(SIZE).fill(fillValue));
@@ -192,35 +197,35 @@ function showToast(text) {
 }
 
 function isBridgeMode() {
-  return gameModeEl.value === "bridge";
+  return gameModeEl.value === "bridge" || gameModeEl.value === "master";
 }
 
-function initializeBridges() {
-  bridgePairs = [];
-  if (!isBridgeMode()) {
-    updateBridgePanel();
-    return;
-  }
+function isChainMode() {
+  return gameModeEl.value === "chain" || gameModeEl.value === "master";
+}
 
-  const empties = shuffle(
-    puzzle
-      .flatMap((row, rowIndex) =>
-        row.map((value, colIndex) => ({ row: rowIndex, col: colIndex, value })),
-      )
-      .filter(({ value }) => value === 0),
-  );
+function initializeVariants() {
+  bridgePairs = [];
+  chainGroups = [];
   const used = new Set();
+  if (isBridgeMode()) generateBridgePairs(used);
+  if (isChainMode()) generateChains(used);
+  updateVariantPanel();
+}
+
+function generateBridgePairs(used) {
+  const empties = shuffle(getEmptyCells());
 
   for (const symbol of BRIDGE_SYMBOLS) {
     let picked = null;
     for (let i = 0; i < empties.length && !picked; i += 1) {
       const first = empties[i];
-      const firstKey = `${first.row}-${first.col}`;
+      const firstKey = getKey(first.row, first.col);
       if (used.has(firstKey)) continue;
 
       for (let j = i + 1; j < empties.length; j += 1) {
         const second = empties[j];
-        const secondKey = `${second.row}-${second.col}`;
+        const secondKey = getKey(second.row, second.col);
         if (used.has(secondKey)) continue;
         if (
           solution[first.row][first.col] + solution[second.row][second.col] !==
@@ -240,10 +245,93 @@ function initializeBridges() {
       target: BRIDGE_TARGET,
       cells: picked.map(({ row, col }) => ({ row, col })),
     });
-    for (const cell of picked) used.add(`${cell.row}-${cell.col}`);
+    for (const cell of picked) used.add(getKey(cell.row, cell.col));
+  }
+}
+
+function generateChains(used) {
+  const candidates = shuffle(getChainCandidates(used));
+
+  for (const symbol of CHAIN_SYMBOLS) {
+    const chain = candidates.find((candidate) =>
+      candidate.every((cell) => !used.has(getKey(cell.row, cell.col))),
+    );
+    if (!chain) break;
+
+    const id = chainGroups.length;
+    chainGroups.push({
+      id,
+      symbol,
+      cells: chain.map((cell, order) => ({ ...cell, order })),
+    });
+    for (const cell of chain) used.add(getKey(cell.row, cell.col));
+  }
+}
+
+function getEmptyCells() {
+  return puzzle.flatMap((row, rowIndex) =>
+    row
+      .map((value, colIndex) => ({ row: rowIndex, col: colIndex, value }))
+      .filter(({ value }) => value === 0),
+  );
+}
+
+function getChainCandidates(used) {
+  const candidates = [];
+  const directions = [
+    [0, 1],
+    [1, 0],
+  ];
+
+  for (let row = 0; row < SIZE; row += 1) {
+    for (let col = 0; col < SIZE; col += 1) {
+      for (const [dr, dc] of directions) {
+        const cells = [];
+        for (let step = 0; step < CHAIN_LENGTH; step += 1) {
+          const nextRow = row + dr * step;
+          const nextCol = col + dc * step;
+          if (nextRow >= SIZE || nextCol >= SIZE) break;
+          if (puzzle[nextRow][nextCol] !== 0) break;
+          if (used.has(getKey(nextRow, nextCol))) break;
+          cells.push({ row: nextRow, col: nextCol });
+        }
+        if (cells.length !== CHAIN_LENGTH) continue;
+        const values = cells.map(({ row: r, col: c }) => solution[r][c]);
+        if (isStrictlyIncreasing(values)) candidates.push(cells);
+        if (isStrictlyDecreasing(values)) candidates.push([...cells].reverse());
+      }
+    }
+  }
+  const empties = shuffle(
+    getEmptyCells().filter(({ row, col }) => !used.has(getKey(row, col))),
+  );
+  for (let i = 0; i < empties.length - CHAIN_LENGTH + 1; i += CHAIN_LENGTH) {
+    const group = empties
+      .slice(i, i + CHAIN_LENGTH)
+      .sort((a, b) => solution[a.row][a.col] - solution[b.row][b.col]);
+    const values = group.map(({ row: r, col: c }) => solution[r][c]);
+    if (group.length === CHAIN_LENGTH && isStrictlyIncreasing(values)) {
+      candidates.push(group);
+    }
   }
 
-  updateBridgePanel();
+  return candidates;
+}
+
+function getKey(row, col) {
+  return `${row}-${col}`;
+}
+
+function isStrictlyIncreasing(values) {
+  return values.every(
+    (value, index) => index === 0 || value > values[index - 1],
+  );
+}
+
+function isStrictlyDecreasing(values) {
+  return values.every(
+    (value, index) => index === 0 || value < values[index - 1],
+  );
 }
 
 function getBridgeFor(row, col) {
@@ -255,8 +343,22 @@ function getBridgeFor(row, col) {
   return null;
 }
 
+function getChainFor(row, col) {
+  for (const chain of chainGroups) {
+    const cell = chain.cells.find(
+      (item) => item.row === row && item.col === col,
+    );
+    if (cell) return { ...chain, cell };
+  }
+  return null;
+}
+
 function getBridgeValues(pair) {
   return pair.cells.map(({ row, col }) => player[row][col]);
+}
+
+function getChainValues(chain) {
+  return chain.cells.map(({ row, col }) => player[row][col]);
 }
 
 function isBridgeComplete(pair) {
@@ -269,37 +371,96 @@ function isBridgeConflict(pair) {
   return values.every(Boolean) && values[0] + values[1] !== pair.target;
 }
 
-function updateBridgePanel() {
-  variantCard.hidden = !isBridgeMode();
-  bridgeListEl.innerHTML = "";
-  if (!isBridgeMode()) return;
-
-  variantTitleEl.textContent = bridgePairs.length
-    ? "同符号双格相加为 10"
-    : "正在寻找星桥约束";
-
-  for (const pair of bridgePairs) {
-    const values = getBridgeValues(pair);
-    const chip = document.createElement("span");
-    chip.className = "bridge-chip";
-    if (isBridgeComplete(pair)) chip.classList.add("complete");
-    if (isBridgeConflict(pair)) chip.classList.add("conflict");
-    chip.textContent = values.every(Boolean)
-      ? `${pair.symbol} ${values[0]}+${values[1]}=${values[0] + values[1]}`
-      : `${pair.symbol} 两格和为 ${pair.target}`;
-    bridgeListEl.append(chip);
-  }
+function isChainComplete(chain) {
+  const values = getChainValues(chain);
+  return values.every(Boolean) && isStrictlyIncreasing(values);
 }
 
-function getBridgeMessage(row, col) {
-  const pair = getBridgeFor(row, col);
-  if (!pair) return "漂亮！这个位置填写正确。";
-  if (isBridgeComplete(pair))
-    return `漂亮！${pair.symbol} 星桥也满足和为 ${pair.target}。`;
+function isChainConflict(chain) {
+  const values = getChainValues(chain);
+  const filledValues = values.filter(Boolean);
+  return filledValues.some(
+    (value, index) => index > 0 && value <= filledValues[index - 1],
+  );
+}
+
+function updateVariantPanel() {
+  const hasVariant = isBridgeMode() || isChainMode();
+  variantCard.hidden = !hasVariant;
+  constraintListEl.innerHTML = "";
+  if (!hasVariant) return;
+
+  if (gameModeEl.value === "master") {
+    variantTitleEl.textContent = "星桥求和 + 星链递增";
+  } else if (isChainMode()) {
+    variantTitleEl.textContent = "同字母星链严格递增";
+  } else {
+    variantTitleEl.textContent = "同符号双格相加为 10";
+  }
+
+  variantHintEl.textContent = getVariantHint();
+
+  for (const pair of bridgePairs) addBridgeChip(pair);
+  for (const chain of chainGroups) addChainChip(chain);
+}
+
+function getVariantHint() {
+  if (gameModeEl.value === "master") {
+    return "大师玩法同时启用星桥和星链：配对格相加为 10，星链 ①→②→③ 严格递增。";
+  }
+  if (isChainMode()) {
+    return "同一个字母的星链有 ①、②、③ 三格，填写数字必须从 ① 到 ③ 严格变大。";
+  }
+  return "棋盘上带有相同星桥符号的两个空格必须相加等于 10。";
+}
+
+function addBridgeChip(pair) {
   const values = getBridgeValues(pair);
-  if (values.some(Boolean))
-    return `${pair.symbol} 星桥还差另一格，记得两格相加要等于 ${pair.target}。`;
-  return "漂亮！这个位置填写正确。";
+  const chip = document.createElement("span");
+  chip.className = "constraint-chip bridge-chip";
+  if (isBridgeComplete(pair)) chip.classList.add("complete");
+  if (isBridgeConflict(pair)) chip.classList.add("conflict");
+  chip.textContent = values.every(Boolean)
+    ? `${pair.symbol} ${values[0]}+${values[1]}=${values[0] + values[1]}`
+    : `${pair.symbol} 两格和为 ${pair.target}`;
+  constraintListEl.append(chip);
+}
+
+function addChainChip(chain) {
+  const values = getChainValues(chain);
+  const chip = document.createElement("span");
+  chip.className = "constraint-chip chain-chip";
+  if (isChainComplete(chain)) chip.classList.add("complete");
+  if (isChainConflict(chain)) chip.classList.add("conflict");
+  chip.textContent = values.every(Boolean)
+    ? `${chain.symbol} ${values.join("<")}`
+    : `${chain.symbol} ①<②<③`;
+  constraintListEl.append(chip);
+}
+
+function getVariantMessage(row, col) {
+  const bridge = getBridgeFor(row, col);
+  const chainInfo = getChainFor(row, col);
+  const messages = [];
+
+  if (bridge) {
+    messages.push(
+      isBridgeComplete(bridge)
+        ? `${bridge.symbol} 星桥满足和为 ${bridge.target}`
+        : `${bridge.symbol} 星桥还要两格相加为 ${bridge.target}`,
+    );
+  }
+  if (chainInfo) {
+    messages.push(
+      isChainComplete(chainInfo)
+        ? `${chainInfo.symbol} 星链已经严格递增`
+        : `${chainInfo.symbol} 星链需要 ①<②<③`,
+    );
+  }
+
+  return messages.length
+    ? `漂亮！${messages.join("，")}。`
+    : "漂亮！这个位置填写正确。";
 }
 
 function getCellCoords(index) {
@@ -334,15 +495,20 @@ function renderBoard() {
     cell.className = "cell";
     cell.setAttribute("role", "gridcell");
     const bridge = getBridgeFor(row, col);
+    const chainInfo = getChainFor(row, col);
     cell.setAttribute(
       "aria-label",
-      `第 ${row + 1} 行第 ${col + 1} 列${value ? `，数字 ${value}` : "，空白"}${bridge ? `，${bridge.symbol} 星桥格，两格和为 ${bridge.target}` : ""}`,
+      `第 ${row + 1} 行第 ${col + 1} 列${value ? `，数字 ${value}` : "，空白"}${bridge ? `，${bridge.symbol} 星桥格，两格和为 ${bridge.target}` : ""}${chainInfo ? `，${chainInfo.symbol} 星链第 ${chainInfo.cell.order + 1} 格，必须按顺序递增` : ""}`,
     );
     cell.dataset.index = String(index);
 
     if (bridge) {
       cell.classList.add("bridge-cell", `bridge-${bridge.id}`);
       if (isBridgeConflict(bridge)) cell.classList.add("bridge-conflict");
+    }
+    if (chainInfo) {
+      cell.classList.add("chain-cell", `chain-${chainInfo.id}`);
+      if (isChainConflict(chainInfo)) cell.classList.add("chain-conflict");
     }
     if (given[row][col]) cell.classList.add("given");
     if (index === selectedIndex) cell.classList.add("selected");
@@ -373,6 +539,13 @@ function renderBoard() {
       const badge = document.createElement("span");
       badge.className = "bridge-badge";
       badge.textContent = bridge.symbol;
+      cell.append(badge);
+    }
+
+    if (chainInfo) {
+      const badge = document.createElement("span");
+      badge.className = "chain-badge";
+      badge.textContent = `${chainInfo.symbol}${CHAIN_BADGES[chainInfo.cell.order]}`;
       cell.append(badge);
     }
 
@@ -415,7 +588,7 @@ function placeNumber(number) {
     if (player[row][col]) player[row][col] = 0;
     if (notes[row][col].has(number)) notes[row][col].delete(number);
     else notes[row][col].add(number);
-    updateBridgePanel();
+    updateVariantPanel();
     setMessage("已更新笔记。再次点击同一数字可移除候选数。");
     renderBoard();
     return;
@@ -431,8 +604,8 @@ function placeNumber(number) {
     if (mistakes >= 3) endGame(false);
   } else {
     removeNumberFromRelatedNotes(row, col, number);
-    updateBridgePanel();
-    setMessage(getBridgeMessage(row, col), "success");
+    updateVariantPanel();
+    setMessage(getVariantMessage(row, col), "success");
     if (isCompleted()) endGame(true);
   }
   renderBoard();
@@ -459,7 +632,7 @@ function eraseCell() {
   pushHistory(row, col);
   player[row][col] = 0;
   notes[row][col].clear();
-  updateBridgePanel();
+  updateVariantPanel();
   setMessage("已清除当前格。");
   renderBoard();
 }
@@ -479,7 +652,7 @@ function giveHint() {
   player[target.row][target.col] = solution[target.row][target.col];
   notes[target.row][target.col].clear();
   selectedIndex = target.row * SIZE + target.col;
-  updateBridgePanel();
+  updateVariantPanel();
   setMessage("提示已点亮一个正确答案。", "success");
   if (isCompleted()) endGame(true);
   renderBoard();
@@ -496,7 +669,7 @@ function undo() {
   mistakes = last.mistakes;
   mistakesEl.textContent = mistakes;
   selectedIndex = last.row * SIZE + last.col;
-  updateBridgePanel();
+  updateVariantPanel();
   setMessage("已撤销上一步操作。");
   renderBoard();
 }
@@ -545,7 +718,7 @@ function newGame() {
     );
     selectedIndex = puzzle.flat().findIndex((value) => value === 0);
     if (selectedIndex < 0) selectedIndex = 0;
-    initializeBridges();
+    initializeVariants();
     startTimer();
     setMessage("点选空格后输入数字，或开启笔记记录候选数。");
     renderBoard();
