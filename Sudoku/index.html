@@ -42,7 +42,17 @@
             <option value="hard">困难 · 28 格预填</option>
             <option value="expert">大师 · 24 格预填</option>
           </select>
-          <button id="newGameBtn" class="primary-btn">新开一局</button>
+
+          <label for="gameMode">选择玩法</label>
+          <select id="gameMode" aria-label="选择数独玩法">
+            <option value="starlight" selected>星轨任务 · 连击收集星光</option>
+            <option value="classic">经典数独 · 纯粹挑战</option>
+          </select>
+
+          <div class="button-row">
+            <button id="newGameBtn" class="primary-btn">新开一局</button>
+            <button id="rulesBtn" class="secondary-btn">规则说明</button>
+          </div>
         </div>
       </section>
 
@@ -54,6 +64,18 @@
           <button id="undoBtn" class="tool-btn">↶ 撤销</button>
           <button id="hintBtn" class="tool-btn">💡 提示</button>
           <button id="eraseBtn" class="tool-btn">⌫ 清除</button>
+        </div>
+
+        <div id="missionCard" class="mission-card" aria-live="polite">
+          <div>
+            <span class="eyebrow">星轨任务</span>
+            <strong id="missionTitle">点亮目标数字</strong>
+          </div>
+          <div id="missionList" class="mission-list"></div>
+          <div class="mission-score">
+            <span>连击 <strong id="streak">0</strong></span>
+            <span>星光 <strong id="stars">0</strong></span>
+          </div>
         </div>
 
         <div id="message" class="message" role="status" aria-live="polite">
@@ -80,6 +102,32 @@
         </div>
       </section>
     </main>
+
+    <dialog id="rulesDialog" class="rules-dialog" aria-labelledby="rulesTitle">
+      <div class="rules-card">
+        <button id="closeRulesBtn" class="close-btn" aria-label="关闭规则说明">
+          ×
+        </button>
+        <span class="eyebrow">新手友好说明</span>
+        <h2 id="rulesTitle">怎么玩星河数独？</h2>
+        <ol>
+          <li>每一行都要填入 1 到 9，且数字不能重复。</li>
+          <li>每一列也要填入 1 到 9，且数字不能重复。</li>
+          <li>每个加粗边框围住的 3×3 小宫，同样要包含 1 到 9。</li>
+          <li>点击空格，再点下方数字；不确定时开启“笔记”记录候选数。</li>
+          <li>错误达到 3 次本局结束；提示会自动填入一个正确答案。</li>
+        </ol>
+        <div class="variant-rule">
+          <strong>创新玩法：星轨任务</strong>
+          <p>
+            系统会随机挑选 3 个目标数字。每填对一个目标数字就能点亮星光，
+            连续答对会增加连击奖励；当 3
+            个目标全部点亮时，会获得一枚“星轨徽章”。
+            如果只想安静解题，可以切换到“经典数独”。
+          </p>
+        </div>
+      </div>
+    </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script src="game.js"></script>

@@ -182,6 +182,12 @@ select {
   outline: none;
 }
 
+.button-row {
+  display: grid;
+  grid-template-columns: 1fr 0.78fr;
+  gap: 10px;
+}
+
 button {
   border: 0;
   cursor: pointer;
@@ -205,13 +211,23 @@ button:active {
   transform: translateY(0);
 }
 
-.primary-btn {
+.primary-btn,
+.secondary-btn {
   padding: 14px 18px;
-  color: white;
   font-weight: 800;
   border-radius: 18px;
+}
+
+.primary-btn {
+  color: white;
   background: linear-gradient(135deg, var(--primary), var(--accent));
   box-shadow: 0 16px 32px rgba(91, 33, 182, 0.28);
+}
+
+.secondary-btn {
+  color: var(--primary-dark);
+  background: #ffffff;
+  border: 1px solid rgba(124, 58, 237, 0.18);
 }
 
 .game-panel {
@@ -239,6 +255,67 @@ button:active {
   color: white;
   background: linear-gradient(135deg, var(--primary), #8b5cf6);
   box-shadow: 0 10px 22px rgba(124, 58, 237, 0.28);
+}
+
+.mission-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: 20px;
+  color: #1e1b4b;
+  background: linear-gradient(135deg, #f5f3ff, #ecfeff);
+  border: 1px solid rgba(124, 58, 237, 0.16);
+}
+
+.mission-card[hidden] {
+  display: none;
+}
+
+.eyebrow {
+  display: block;
+  color: var(--primary-dark);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.mission-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.mission-chip {
+  min-width: 70px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  text-align: center;
+  color: #4338ca;
+  background: rgba(255, 255, 255, 0.82);
+  font-weight: 900;
+}
+
+.mission-chip.complete {
+  color: #047857;
+  background: #d1fae5;
+}
+
+.mission-score {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 14px;
+  color: #475569;
+  font-weight: 800;
+}
+
+.mission-score strong {
+  color: var(--primary-dark);
+  font-size: 1.1rem;
 }
 
 .message {
@@ -288,8 +365,9 @@ button:active {
   color: #1f2a44;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  font-size: clamp(1.2rem, 4vw, 2rem);
-  font-weight: 800;
+  font-size: clamp(1.8rem, 5.8vw, 3.15rem);
+  line-height: 1;
+  font-weight: 900;
   user-select: none;
 }
 
@@ -340,8 +418,8 @@ button:active {
   align-items: center;
   justify-items: center;
   color: #7c3aed;
-  font-size: clamp(0.48rem, 1.45vw, 0.78rem);
-  font-weight: 700;
+  font-size: clamp(0.58rem, 1.65vw, 0.9rem);
+  font-weight: 800;
   padding: 8%;
 }
 
@@ -384,6 +462,69 @@ button:active {
 .toast.show {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+.rules-dialog {
+  width: min(640px, calc(100% - 30px));
+  padding: 0;
+  border: 0;
+  border-radius: 28px;
+  background: transparent;
+  color: var(--ink);
+}
+
+.rules-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.56);
+  backdrop-filter: blur(8px);
+}
+
+.rules-card {
+  position: relative;
+  padding: 30px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow);
+}
+
+.rules-card h2 {
+  margin: 8px 0 16px;
+  font-size: clamp(1.8rem, 5vw, 2.65rem);
+  letter-spacing: -0.05em;
+}
+
+.rules-card ol {
+  margin: 0;
+  padding-left: 1.35rem;
+  color: #475569;
+  line-height: 1.8;
+  font-weight: 700;
+}
+
+.variant-rule {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #ede9fe, #cffafe);
+}
+
+.variant-rule p {
+  margin: 8px 0 0;
+  color: #475569;
+  line-height: 1.7;
+  font-weight: 700;
+}
+
+.close-btn {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  color: #475569;
+  background: #f1f5f9;
+  font-size: 1.45rem;
+  font-weight: 900;
 }
 
 @keyframes shake {
@@ -433,7 +574,16 @@ button:active {
     min-height: 44px;
     border-radius: 12px;
   }
+  .button-row {
+    grid-template-columns: 1fr;
+  }
+  .mission-card {
+    grid-template-columns: 1fr;
+  }
+  .mission-list {
+    justify-content: flex-start;
+  }
   .cell {
-    font-size: 1.12rem;
+    font-size: 1.55rem;
   }
 }

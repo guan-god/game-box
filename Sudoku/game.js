@@ -16,6 +16,7 @@ const DIFFICULTY_NAMES = {
 const boardEl = document.querySelector("#board");
 const difficultyEl = document.querySelector("#difficulty");
 const difficultyLabelEl = document.querySelector("#difficultyLabel");
+const gameModeEl = document.querySelector("#gameMode");
 const timerEl = document.querySelector("#timer");
 const mistakesEl = document.querySelector("#mistakes");
 const messageEl = document.querySelector("#message");
@@ -24,6 +25,14 @@ const newGameBtn = document.querySelector("#newGameBtn");
 const hintBtn = document.querySelector("#hintBtn");
 const undoBtn = document.querySelector("#undoBtn");
 const eraseBtn = document.querySelector("#eraseBtn");
+const rulesBtn = document.querySelector("#rulesBtn");
+const closeRulesBtn = document.querySelector("#closeRulesBtn");
+const rulesDialog = document.querySelector("#rulesDialog");
+const missionCard = document.querySelector("#missionCard");
+const missionListEl = document.querySelector("#missionList");
+const missionTitleEl = document.querySelector("#missionTitle");
+const streakEl = document.querySelector("#streak");
+const starsEl = document.querySelector("#stars");
 const toastEl = document.querySelector("#toast");
 
 let solution = [];
@@ -38,6 +47,10 @@ let seconds = 0;
 let timerId = null;
 let history = [];
 let isGameOver = false;
+let missionTargets = [];
+let streak = 0;
+let stars = 0;
+let badgeAwarded = false;
 
 function createEmptyGrid(fillValue = 0) {
   return Array.from({ length: SIZE }, () => Array(SIZE).fill(fillValue));
@@ -181,6 +194,80 @@ function showToast(text) {
   );
 }
 
+function isStarlightMode() {
+  return gameModeEl.value !== "classic";
+}
+
+function initializeMission() {
+  streak = 0;
+  stars = 0;
+  badgeAwarded = false;
+  missionTargets = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, 3);
+  updateMission();
+}
+
+function getMissionProgress(number) {
+  let solved = 0;
+  let total = 0;
+  for (let row = 0; row < SIZE; row += 1) {
+    for (let col = 0; col < SIZE; col += 1) {
+      if (solution[row][col] !== number) continue;
+      total += 1;
+      if (player[row][col] === number) solved += 1;
+    }
+  }
+  return { solved, total };
+}
+
+function updateMission() {
+  missionCard.hidden = !isStarlightMode();
+  streakEl.textContent = streak;
+  starsEl.textContent = stars;
+
+  if (!isStarlightMode() || !missionTargets.length || !solution.length) return;
+
+  missionTitleEl.textContent = badgeAwarded ? "星轨徽章已获得" : "点亮目标数字";
+  missionListEl.innerHTML = "";
+  let allComplete = true;
+
+  for (const number of missionTargets) {
+    const { solved, total } = getMissionProgress(number);
+    const chip = document.createElement("span");
+    chip.className = "mission-chip";
+    chip.textContent = `${number} · ${solved}/${total}`;
+    if (total > 0 && solved === total) chip.classList.add("complete");
+    else allComplete = false;
+    missionListEl.append(chip);
+  }
+
+  if (allComplete && !badgeAwarded) {
+    badgeAwarded = true;
+    stars += 9;
+    starsEl.textContent = stars;
+    missionTitleEl.textContent = "星轨徽章已获得";
+    showToast("三条星轨全部点亮，获得星轨徽章！");
+  }
+}
+
+function rewardCorrectMove(number) {
+  if (!isStarlightMode()) return;
+  streak += 1;
+  if (missionTargets.includes(number)) {
+    stars += 2 + Math.floor(streak / 3);
+    showToast(`目标数字 ${number} 点亮！连击 ${streak}`);
+  } else if (streak > 1 && streak % 4 === 0) {
+    stars += 1;
+    showToast(`连续答对 ${streak} 次，额外获得 1 点星光`);
+  }
+  updateMission();
+}
+
+function resetStreak() {
+  if (!isStarlightMode()) return;
+  streak = 0;
+  updateMission();
+}
+
 function getCellCoords(index) {
   return { row: Math.floor(index / SIZE), col: index % SIZE };
 }
@@ -257,6 +344,9 @@ function pushHistory(row, col) {
     value: player[row][col],
     notes: new Set(notes[row][col]),
     mistakes,
+    streak,
+    stars,
+    badgeAwarded,
   });
 }
 
@@ -268,12 +358,18 @@ function placeNumber(number) {
     return;
   }
 
+  if (!noteMode && player[row][col] === number) {
+    showToast("这个数字已经填在当前格了");
+    return;
+  }
+
   pushHistory(row, col);
 
   if (noteMode) {
     if (player[row][col]) player[row][col] = 0;
     if (notes[row][col].has(number)) notes[row][col].delete(number);
     else notes[row][col].add(number);
+    updateMission();
     setMessage("已更新笔记。再次点击同一数字可移除候选数。");
     renderBoard();
     return;
@@ -285,10 +381,12 @@ function placeNumber(number) {
   if (number !== solution[row][col]) {
     mistakes += 1;
     mistakesEl.textContent = mistakes;
+    resetStreak();
     setMessage(`这个数字不太对，再检查一下行、列或宫。`, "danger");
     if (mistakes >= 3) endGame(false);
   } else {
     removeNumberFromRelatedNotes(row, col, number);
+    rewardCorrectMove(number);
     setMessage("漂亮！这个位置填写正确。", "success");
     if (isCompleted()) endGame(true);
   }
@@ -316,6 +414,7 @@ function eraseCell() {
   pushHistory(row, col);
   player[row][col] = 0;
   notes[row][col].clear();
+  updateMission();
   setMessage("已清除当前格。");
   renderBoard();
 }
@@ -335,6 +434,7 @@ function giveHint() {
   player[target.row][target.col] = solution[target.row][target.col];
   notes[target.row][target.col].clear();
   selectedIndex = target.row * SIZE + target.col;
+  updateMission();
   setMessage("提示已点亮一个正确答案。", "success");
   if (isCompleted()) endGame(true);
   renderBoard();
@@ -349,8 +449,12 @@ function undo() {
   player[last.row][last.col] = last.value;
   notes[last.row][last.col] = last.notes;
   mistakes = last.mistakes;
+  streak = last.streak;
+  stars = last.stars;
+  badgeAwarded = last.badgeAwarded;
   mistakesEl.textContent = mistakes;
   selectedIndex = last.row * SIZE + last.col;
+  updateMission();
   setMessage("已撤销上一步操作。");
   renderBoard();
 }
@@ -386,6 +490,7 @@ function newGame() {
   history = [];
   mistakesEl.textContent = mistakes;
   difficultyLabelEl.textContent = DIFFICULTY_NAMES[difficultyEl.value];
+  missionCard.hidden = !isStarlightMode();
 
   setTimeout(() => {
     const generated = generatePuzzle(difficultyEl.value);
@@ -398,6 +503,7 @@ function newGame() {
     );
     selectedIndex = puzzle.flat().findIndex((value) => value === 0);
     if (selectedIndex < 0) selectedIndex = 0;
+    initializeMission();
     startTimer();
     setMessage("点选空格后输入数字，或开启笔记记录候选数。");
     renderBoard();
@@ -416,9 +522,21 @@ noteBtn.addEventListener("click", () => {
 });
 
 newGameBtn.addEventListener("click", newGame);
+gameModeEl.addEventListener("change", newGame);
 hintBtn.addEventListener("click", giveHint);
 undoBtn.addEventListener("click", undo);
 eraseBtn.addEventListener("click", eraseCell);
+rulesBtn.addEventListener("click", () => {
+  if (typeof rulesDialog.showModal === "function") rulesDialog.showModal();
+  else rulesDialog.setAttribute("open", "");
+});
+closeRulesBtn.addEventListener("click", () => {
+  if (typeof rulesDialog.close === "function") rulesDialog.close();
+  else rulesDialog.removeAttribute("open");
+});
+rulesDialog.addEventListener("click", (event) => {
+  if (event.target === rulesDialog) closeRulesBtn.click();
+});
 
 document.querySelectorAll("[data-number]").forEach((button) => {
   button.addEventListener("click", () =>
