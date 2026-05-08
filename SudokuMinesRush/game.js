@@ -262,11 +262,15 @@ function getFusionIntel(index) {
     box: groupSummary(boxIndices),
     rowNo: row + 1,
     colNo: col + 1,
-    boxNo: Math.floor(row / BOX) * BOX + Math.floor(col / BOX) + 1,
+    boxNo: Math.floor(row / BOX) * (SIZE / BOX) + Math.floor(col / BOX) + 1,
   };
 }
 
 function renderFusionInfo() {
+  if (selectedIndex < 0 || selectedIndex >= SIZE * SIZE) {
+    fusionInfoEl.textContent = "情报：请选择一个格子查看行/列/宫雷区态势。";
+    return;
+  }
   const intel = getFusionIntel(selectedIndex);
   fusionInfoEl.textContent =
     `情报：R${intel.rowNo} 雷 ${intel.row.flagged}/${intel.row.total}（待排 ${intel.row.pending}）` +
@@ -485,6 +489,10 @@ function getNeighborIndices(index) {
 
 function useFusionPulse() {
   if (gameOver) return;
+  if (selectedIndex < 0 || selectedIndex >= SIZE * SIZE) {
+    setMessage("请先选择一个格子，再释放融合脉冲。", "warn");
+    return;
+  }
   if (energy < ENERGY_MAX) {
     setMessage("融合能量不足，继续连击以充能。", "warn");
     return;
@@ -519,7 +527,6 @@ function useFusionPulse() {
       "ok",
     );
   } else {
-    combo = 0;
     setMessage("融合脉冲已释放，但当前周围暂无可处理目标。", "warn");
   }
   checkWin();
