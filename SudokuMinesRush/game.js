@@ -328,7 +328,6 @@ function placeNumber(n) {
     checkWin();
   } else {
     // 错误数字短暂显示，给出反馈后再清空，避免干扰后续数独推理。
-    player[row][col] = n;
     combo = 0;
     loseLife("数字不正确");
     renderBoard();
