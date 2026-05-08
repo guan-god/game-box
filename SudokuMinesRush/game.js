@@ -1,6 +1,6 @@
 const SIZE = 9;
 const BOX = 3;
-const BOXES_PER_ROW = SIZE / BOX;
+const BOXES_PER_DIMENSION = SIZE / BOX;
 const HINT_PENALTY = 12;
 const WIN_BONUS = 100;
 const ENERGY_MAX = 100;
@@ -276,7 +276,7 @@ function getFusionIntel(index) {
     box: groupSummary(boxIndices),
     rowNo: row + 1,
     colNo: col + 1,
-    boxNo: Math.floor(row / BOX) * BOXES_PER_ROW + Math.floor(col / BOX) + 1,
+    boxNo: Math.floor(row / BOX) * BOXES_PER_DIMENSION + Math.floor(col / BOX) + 1,
   };
 }
 
@@ -532,8 +532,8 @@ function useFusionPulse() {
     flags.delete(idx);
   }
 
-  chargeEnergy(-ENERGY_MAX);
   if (autoFilled || autoFlagged) {
+    chargeEnergy(-ENERGY_MAX);
     combo += 1;
     addScore(
       autoFilled * SCORE_PULSE_AUTO_FILL +
@@ -545,7 +545,7 @@ function useFusionPulse() {
       "ok",
     );
   } else {
-    setMessage("融合脉冲已释放，但当前周围暂无可处理目标。", "warn");
+    setMessage("当前周围暂无可处理目标，融合能量已保留。", "warn");
   }
   checkWin();
   renderBoard();
