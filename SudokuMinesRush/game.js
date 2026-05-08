@@ -327,15 +327,25 @@ function placeNumber(n) {
     setMessage(`正确！${comboText()}`, "ok");
     checkWin();
   } else {
-    // 错误输入立即清空，避免错误数字干扰后续数独推理。
-    player[row][col] = 0;
+    // 错误数字短暂显示，给出反馈后再清空，避免干扰后续数独推理。
+    player[row][col] = n;
     combo = 0;
     loseLife("数字不正确");
+    renderBoard();
     const cell = boardEl.querySelector(`[data-index='${selectedIndex}']`);
     if (cell) {
       cell.classList.add("bad");
       setTimeout(() => cell.classList.remove("bad"), 240);
     }
+    const wrongIndex = selectedIndex;
+    setTimeout(() => {
+      const current = toRowCol(wrongIndex);
+      if (player[current.row][current.col] === n) {
+        player[current.row][current.col] = 0;
+        renderBoard();
+      }
+    }, 240);
+    return;
   }
   renderBoard();
 }

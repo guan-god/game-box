@@ -47,6 +47,7 @@ body {
 .stats strong { font-size: 18px; }
 .control { display: grid; gap: 8px; margin-bottom: 12px; }
 .control label { color: #64748b; font-weight: 700; }
+.control small { color: #64748b; font-weight: 600; line-height: 1.5; }
 select, button { font: inherit; }
 select {
   border: 1px solid #d4dbef;
