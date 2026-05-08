@@ -1,5 +1,7 @@
 const SIZE = 9;
 const BOX = 3;
+const HINT_PENALTY = 12;
+const WIN_BONUS = 100;
 const DIRS = [
   [-1, -1], [-1, 0], [-1, 1],
   [0, -1],           [0, 1],
@@ -325,6 +327,7 @@ function placeNumber(n) {
     setMessage(`正确！${comboText()}`, "ok");
     checkWin();
   } else {
+    // 错误输入立即清空，避免错误数字干扰后续数独推理。
     player[row][col] = 0;
     combo = 0;
     loseLife("数字不正确");
@@ -378,8 +381,11 @@ function giveHint() {
   player[row][col] = solution[row][col];
   flags.delete(pick);
   combo = 0;
-  score = Math.max(0, score - 12);
-  setMessage("提示已使用：自动填入一个安全正确数字（扣 12 分）。", "warn");
+  score = Math.max(0, score - HINT_PENALTY);
+  setMessage(
+    `提示已使用：自动填入一个安全正确数字（扣 ${HINT_PENALTY} 分）。`,
+    "warn",
+  );
   checkWin();
   renderBoard();
 }
@@ -398,8 +404,11 @@ function checkWin() {
 
   gameOver = true;
   clearInterval(timerId);
-  score += 100;
-  setMessage(`通关！你完成了雷数狂潮，奖励 +100，最终得分 ${score}。`, "ok");
+  score += WIN_BONUS;
+  setMessage(
+    `通关！你完成了雷数狂潮，奖励 +${WIN_BONUS}，最终得分 ${score}。`,
+    "ok",
+  );
 }
 
 function switchMode() {
