@@ -164,6 +164,10 @@ function toRowCol(index) {
   return { row: Math.floor(index / SIZE), col: index % SIZE };
 }
 
+function isValidSelectedIndex() {
+  return selectedIndex >= 0 && selectedIndex < SIZE * SIZE;
+}
+
 function setMessage(text, type = "") {
   messageEl.className = `message ${type}`.trim();
   messageEl.textContent = text;
@@ -267,7 +271,7 @@ function getFusionIntel(index) {
 }
 
 function renderFusionInfo() {
-  if (selectedIndex < 0 || selectedIndex >= SIZE * SIZE) {
+  if (!isValidSelectedIndex()) {
     fusionInfoEl.textContent = "情报：请选择一个格子查看行/列/宫雷区态势。";
     return;
   }
@@ -489,7 +493,7 @@ function getNeighborIndices(index) {
 
 function useFusionPulse() {
   if (gameOver) return;
-  if (selectedIndex < 0 || selectedIndex >= SIZE * SIZE) {
+  if (!isValidSelectedIndex()) {
     setMessage("请先选择一个格子，再释放融合脉冲。", "warn");
     return;
   }
