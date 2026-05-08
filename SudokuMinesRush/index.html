@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>雷数狂潮 · Sudoku × Minesweeper</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="panel hero">
+        <h1>雷数狂潮</h1>
+        <p>把数独与扫雷揉成一局高压快感：填对数字、精准插旗、连击拉满！</p>
+
+        <div class="stats">
+          <div><span>难度</span><strong id="difficultyLabel">中等</strong></div>
+          <div><span>时间</span><strong id="timer">00:00</strong></div>
+          <div><span>生命</span><strong id="lives">3</strong></div>
+          <div><span>得分</span><strong id="score">0</strong></div>
+          <div><span>连击</span><strong id="combo">x0</strong></div>
+          <div><span>进度</span><strong id="progress">0/0</strong></div>
+        </div>
+
+        <div class="control">
+          <label for="difficulty">选择难度</label>
+          <select id="difficulty">
+            <option value="easy">轻松：8 雷 / 44 题目数</option>
+            <option value="medium" selected>中等：12 雷 / 36 题目数</option>
+            <option value="hard">困难：16 雷 / 30 题目数</option>
+            <option value="expert">狂潮：20 雷 / 26 题目数</option>
+          </select>
+          <small>题目数越少，留给你推理填写的空格越多，数独部分会更难。</small>
+          <div class="btn-row">
+            <button id="newGameBtn" class="primary">新开一局</button>
+            <button id="hintBtn">提示</button>
+            <button id="modeBtn">模式：填数</button>
+          </div>
+        </div>
+
+        <div class="tips">
+          <strong>规则速读</strong>
+          <ol>
+            <li>非雷格要按数独规则填对 1~9。</li>
+            <li>雷格必须全部插旗（🚩）。</li>
+            <li>填错数字或踩雷都会掉生命，生命归零则失败。</li>
+            <li>连续正确操作会提升连击分，爽感更强。</li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="panel game">
+        <div id="message" class="message">开始吧！先找安全格填数，或切到插旗模式标记地雷。</div>
+        <div id="board" class="board" role="grid" aria-label="雷数狂潮棋盘"></div>
+        <div id="pad" class="pad" aria-label="数字键盘"></div>
+      </section>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
