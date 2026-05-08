@@ -55,7 +55,7 @@ select {
   padding: 10px;
   background: white;
 }
-.btn-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.btn-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 button {
   border: 0;
   border-radius: 12px;
@@ -67,9 +67,18 @@ button {
 }
 button:hover { transform: translateY(-1px); }
 button:active { transform: translateY(0); }
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+}
 button.primary {
   color: #fff;
   background: linear-gradient(135deg, var(--primary), var(--accent));
+}
+button.fusion {
+  color: #fff;
+  background: linear-gradient(135deg, #ea580c, #f59e0b);
 }
 .tips {
   background: #f8fafc;
@@ -94,6 +103,19 @@ button.primary {
 .message.ok { background: #dcfce7; color: #166534; }
 .message.warn { background: #fef3c7; color: #92400e; }
 .message.bad { background: #fee2e2; color: #991b1b; }
+.fusion-info {
+  min-height: 44px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 8px 10px;
+  font-weight: 700;
+}
 .board {
   aspect-ratio: 1;
   width: min(72vh, 100%);
@@ -120,6 +142,7 @@ button.primary {
 .cell:nth-child(n + 46):nth-child(-n + 54) { border-bottom: 3px solid var(--line-strong); }
 .cell:nth-child(9n) { border-right: 1px solid var(--line); }
 .cell.selected { background: #ede9fe; }
+.cell.fusion-ready { box-shadow: inset 0 0 0 2px #fb923c; }
 .cell.related { background: #f1f5f9; }
 .cell.given { color: #111827; background: #f8fafc; }
 .cell.mine-hit { background: #fee2e2; }

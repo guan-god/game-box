@@ -2,6 +2,7 @@ const SIZE = 9;
 const BOX = 3;
 const HINT_PENALTY = 12;
 const WIN_BONUS = 100;
+const ENERGY_MAX = 100;
 const DIRS = [
   [-1, -1], [-1, 0], [-1, 1],
   [0, -1],           [0, 1],
@@ -24,10 +25,13 @@ const timerEl = document.querySelector("#timer");
 const livesEl = document.querySelector("#lives");
 const scoreEl = document.querySelector("#score");
 const comboEl = document.querySelector("#combo");
+const energyEl = document.querySelector("#energy");
 const progressEl = document.querySelector("#progress");
+const fusionInfoEl = document.querySelector("#fusionInfo");
 const newGameBtn = document.querySelector("#newGameBtn");
 const hintBtn = document.querySelector("#hintBtn");
 const modeBtn = document.querySelector("#modeBtn");
+const pulseBtn = document.querySelector("#pulseBtn");
 
 let solution = [];
 let puzzle = [];
@@ -41,6 +45,7 @@ let mode = "fill";
 let lives = 3;
 let score = 0;
 let combo = 0;
+let energy = 0;
 let seconds = 0;
 let timerId = null;
 let gameOver = false;
@@ -214,12 +219,69 @@ function getSolvedSafeCount() {
   return { solved, total };
 }
 
+function updatePulseButton() {
+  if (energy >= ENERGY_MAX) {
+    pulseBtn.disabled = false;
+    pulseBtn.textContent = "融合脉冲（已就绪）";
+  } else {
+    pulseBtn.disabled = true;
+    pulseBtn.textContent = `融合脉冲（${energy}%）`;
+  }
+}
+
+function chargeEnergy(delta) {
+  energy = Math.max(0, Math.min(ENERGY_MAX, energy + delta));
+}
+
+function groupSummary(indices) {
+  let total = 0;
+  let flagged = 0;
+  for (const idx of indices) {
+    if (mines.has(idx)) total += 1;
+    if (flags.has(idx)) flagged += 1;
+  }
+  const pending = Math.max(0, total - flagged);
+  return { total, flagged, pending };
+}
+
+function getFusionIntel(index) {
+  const { row, col } = toRowCol(index);
+  const rowIndices = Array.from({ length: SIZE }, (_, c) => toIndex(row, c));
+  const colIndices = Array.from({ length: SIZE }, (_, r) => toIndex(r, col));
+  const sr = Math.floor(row / BOX) * BOX;
+  const sc = Math.floor(col / BOX) * BOX;
+  const boxIndices = [];
+  for (let r = 0; r < BOX; r += 1) {
+    for (let c = 0; c < BOX; c += 1) {
+      boxIndices.push(toIndex(sr + r, sc + c));
+    }
+  }
+  return {
+    row: groupSummary(rowIndices),
+    col: groupSummary(colIndices),
+    box: groupSummary(boxIndices),
+    rowNo: row + 1,
+    colNo: col + 1,
+    boxNo: Math.floor(row / BOX) * BOX + Math.floor(col / BOX) + 1,
+  };
+}
+
+function renderFusionInfo() {
+  const intel = getFusionIntel(selectedIndex);
+  fusionInfoEl.textContent =
+    `情报：R${intel.rowNo} 雷 ${intel.row.flagged}/${intel.row.total}（待排 ${intel.row.pending}）` +
+    ` ｜ C${intel.colNo} 雷 ${intel.col.flagged}/${intel.col.total}（待排 ${intel.col.pending}）` +
+    ` ｜ 宫${intel.boxNo} 雷 ${intel.box.flagged}/${intel.box.total}（待排 ${intel.box.pending}）`;
+}
+
 function updateTopStats() {
   livesEl.textContent = String(lives);
   scoreEl.textContent = String(score);
   comboEl.textContent = `x${combo}`;
+  energyEl.textContent = `${energy}%`;
   const p = getSolvedSafeCount();
   progressEl.textContent = `${p.solved}/${p.total}`;
+  updatePulseButton();
 }
 
 function isRelated(a, b) {
@@ -245,7 +307,10 @@ function renderBoard() {
 
     const value = player[row][col];
     if (given[row][col]) btn.classList.add("given");
-    if (i === selectedIndex) btn.classList.add("selected");
+    if (i === selectedIndex) {
+      btn.classList.add("selected");
+      if (energy >= ENERGY_MAX) btn.classList.add("fusion-ready");
+    }
     else if (isRelated(i, selectedIndex)) btn.classList.add("related");
 
     if (flags.has(i)) {
@@ -278,6 +343,7 @@ function renderBoard() {
   }
 
   updateTopStats();
+  renderFusionInfo();
 }
 
 function addScore(base) {
@@ -294,6 +360,7 @@ function comboText() {
 function loseLife(reason) {
   lives -= 1;
   combo = 0;
+  chargeEnergy(-20);
   setMessage(`${reason}，生命 -1。`, "bad");
   if (lives <= 0) {
     gameOver = true;
@@ -323,6 +390,7 @@ function placeNumber(n) {
   player[row][col] = n;
   if (n === solution[row][col]) {
     combo += 1;
+    chargeEnergy(18);
     addScore(20);
     setMessage(`正确！${comboText()}`, "ok");
     checkWin();
@@ -358,15 +426,18 @@ function toggleFlag(index) {
   if (flags.has(index)) {
     flags.delete(index);
     combo = 0;
+    chargeEnergy(-8);
     setMessage("已取消旗帜。", "warn");
   } else {
     flags.add(index);
     if (mines.has(index)) {
       combo += 1;
+      chargeEnergy(12);
       addScore(15);
       setMessage(`精准插旗！${comboText()}`, "ok");
     } else {
       combo = 0;
+      chargeEnergy(-10);
       setMessage("这里看起来不像雷，注意观察邻雷提示。", "warn");
     }
     checkWin();
@@ -390,11 +461,67 @@ function giveHint() {
   player[row][col] = solution[row][col];
   flags.delete(pick);
   combo = 0;
+  chargeEnergy(-15);
   score = Math.max(0, score - HINT_PENALTY);
   setMessage(
     `提示已使用：自动填入一个安全正确数字（扣 ${HINT_PENALTY} 分）。`,
     "warn",
   );
+  checkWin();
+  renderBoard();
+}
+
+function getNeighborIndices(index) {
+  const { row, col } = toRowCol(index);
+  const neighbors = [];
+  for (const [dr, dc] of DIRS) {
+    const nr = row + dr;
+    const nc = col + dc;
+    if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
+    neighbors.push(toIndex(nr, nc));
+  }
+  return neighbors;
+}
+
+function useFusionPulse() {
+  if (gameOver) return;
+  if (energy < ENERGY_MAX) {
+    setMessage("融合能量不足，继续连击以充能。", "warn");
+    return;
+  }
+
+  let autoFilled = 0;
+  let autoFlagged = 0;
+  for (const idx of getNeighborIndices(selectedIndex)) {
+    if (mines.has(idx)) {
+      if (!flags.has(idx)) {
+        flags.add(idx);
+        autoFlagged += 1;
+      }
+      continue;
+    }
+
+    const { row, col } = toRowCol(idx);
+    if (given[row][col]) continue;
+    if (player[row][col] !== solution[row][col]) {
+      player[row][col] = solution[row][col];
+      autoFilled += 1;
+    }
+    flags.delete(idx);
+  }
+
+  chargeEnergy(-ENERGY_MAX);
+  if (autoFilled || autoFlagged) {
+    combo += 1;
+    addScore(autoFilled * 18 + autoFlagged * 15 + 12);
+    setMessage(
+      `融合脉冲释放：自动填入 ${autoFilled} 格，锁定 ${autoFlagged} 枚地雷。`,
+      "ok",
+    );
+  } else {
+    combo = 0;
+    setMessage("融合脉冲已释放，但当前周围暂无可处理目标。", "warn");
+  }
   checkWin();
   renderBoard();
 }
@@ -457,21 +584,24 @@ function newGame() {
   lives = cfg.lives;
   score = 0;
   combo = 0;
+  energy = 0;
   gameOver = false;
 
   startTimer();
-  setMessage("新局开始！优先处理高邻雷格，稳住连击节奏。", "ok");
+  setMessage("新局开始！连击可充能，满能量后释放融合脉冲。", "ok");
   renderBoard();
 }
 
 newGameBtn.addEventListener("click", newGame);
 hintBtn.addEventListener("click", giveHint);
 modeBtn.addEventListener("click", switchMode);
+pulseBtn.addEventListener("click", useFusionPulse);
 difficultyEl.addEventListener("change", newGame);
 
 window.addEventListener("keydown", (e) => {
   if (e.key >= "1" && e.key <= "9") placeNumber(Number(e.key));
   if (e.key.toLowerCase() === "f") switchMode();
+  if (e.key.toLowerCase() === "e") useFusionPulse();
 
   const { row, col } = toRowCol(selectedIndex);
   const move = {
