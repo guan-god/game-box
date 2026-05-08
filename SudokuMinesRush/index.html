@@ -18,6 +18,7 @@
           <div><span>生命</span><strong id="lives">3</strong></div>
           <div><span>得分</span><strong id="score">0</strong></div>
           <div><span>连击</span><strong id="combo">x0</strong></div>
+          <div><span>融合能量</span><strong id="energy">0%</strong></div>
           <div><span>进度</span><strong id="progress">0/0</strong></div>
         </div>
 
@@ -34,6 +35,7 @@
             <button id="newGameBtn" class="primary">新开一局</button>
             <button id="hintBtn">提示</button>
             <button id="modeBtn">模式：填数</button>
+            <button id="pulseBtn" class="fusion">融合脉冲（未就绪）</button>
           </div>
         </div>
 
@@ -43,13 +45,15 @@
             <li>非雷格要按数独规则填对 1~9。</li>
             <li>雷格必须全部插旗（🚩）。</li>
             <li>填错数字或踩雷都会掉生命，生命归零则失败。</li>
-            <li>连续正确操作会提升连击分，爽感更强。</li>
+            <li>连续正确操作会提升连击并充能，满能量可释放融合脉冲。</li>
+            <li>融合脉冲会同时处理周围格：自动插真雷旗、填安全正确数。</li>
           </ol>
         </div>
       </section>
 
       <section class="panel game">
         <div id="message" class="message">开始吧！先找安全格填数，或切到插旗模式标记地雷。</div>
+        <div id="fusionInfo" class="fusion-info">情报：选择任意格子查看行/列/宫雷区态势。</div>
         <div id="board" class="board" role="grid" aria-label="雷数狂潮棋盘"></div>
         <div id="pad" class="pad" aria-label="数字键盘"></div>
       </section>
