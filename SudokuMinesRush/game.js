@@ -1,8 +1,18 @@
 const SIZE = 9;
 const BOX = 3;
+const BOXES_PER_ROW = SIZE / BOX;
 const HINT_PENALTY = 12;
 const WIN_BONUS = 100;
 const ENERGY_MAX = 100;
+const ENERGY_GAIN_CORRECT_NUMBER = 18;
+const ENERGY_GAIN_CORRECT_FLAG = 12;
+const ENERGY_PENALTY_LOSE_LIFE = 20;
+const ENERGY_PENALTY_UNFLAG = 8;
+const ENERGY_PENALTY_WRONG_FLAG = 10;
+const ENERGY_PENALTY_HINT = 15;
+const SCORE_PULSE_AUTO_FILL = 18;
+const SCORE_PULSE_AUTO_FLAG = 15;
+const SCORE_PULSE_BASE = 12;
 const DIRS = [
   [-1, -1], [-1, 0], [-1, 1],
   [0, -1],           [0, 1],
@@ -266,7 +276,7 @@ function getFusionIntel(index) {
     box: groupSummary(boxIndices),
     rowNo: row + 1,
     colNo: col + 1,
-    boxNo: Math.floor(row / BOX) * (SIZE / BOX) + Math.floor(col / BOX) + 1,
+    boxNo: Math.floor(row / BOX) * BOXES_PER_ROW + Math.floor(col / BOX) + 1,
   };
 }
 
@@ -368,7 +378,7 @@ function comboText() {
 function loseLife(reason) {
   lives -= 1;
   combo = 0;
-  chargeEnergy(-20);
+  chargeEnergy(-ENERGY_PENALTY_LOSE_LIFE);
   setMessage(`${reason}，生命 -1。`, "bad");
   if (lives <= 0) {
     gameOver = true;
@@ -398,7 +408,7 @@ function placeNumber(n) {
   player[row][col] = n;
   if (n === solution[row][col]) {
     combo += 1;
-    chargeEnergy(18);
+    chargeEnergy(ENERGY_GAIN_CORRECT_NUMBER);
     addScore(20);
     setMessage(`正确！${comboText()}`, "ok");
     checkWin();
@@ -434,18 +444,18 @@ function toggleFlag(index) {
   if (flags.has(index)) {
     flags.delete(index);
     combo = 0;
-    chargeEnergy(-8);
+    chargeEnergy(-ENERGY_PENALTY_UNFLAG);
     setMessage("已取消旗帜。", "warn");
   } else {
     flags.add(index);
     if (mines.has(index)) {
       combo += 1;
-      chargeEnergy(12);
+      chargeEnergy(ENERGY_GAIN_CORRECT_FLAG);
       addScore(15);
       setMessage(`精准插旗！${comboText()}`, "ok");
     } else {
       combo = 0;
-      chargeEnergy(-10);
+      chargeEnergy(-ENERGY_PENALTY_WRONG_FLAG);
       setMessage("这里看起来不像雷，注意观察邻雷提示。", "warn");
     }
     checkWin();
@@ -469,7 +479,7 @@ function giveHint() {
   player[row][col] = solution[row][col];
   flags.delete(pick);
   combo = 0;
-  chargeEnergy(-15);
+  chargeEnergy(-ENERGY_PENALTY_HINT);
   score = Math.max(0, score - HINT_PENALTY);
   setMessage(
     `提示已使用：自动填入一个安全正确数字（扣 ${HINT_PENALTY} 分）。`,
@@ -525,7 +535,11 @@ function useFusionPulse() {
   chargeEnergy(-ENERGY_MAX);
   if (autoFilled || autoFlagged) {
     combo += 1;
-    addScore(autoFilled * 18 + autoFlagged * 15 + 12);
+    addScore(
+      autoFilled * SCORE_PULSE_AUTO_FILL +
+      autoFlagged * SCORE_PULSE_AUTO_FLAG +
+      SCORE_PULSE_BASE,
+    );
     setMessage(
       `融合脉冲释放：自动填入 ${autoFilled} 格，锁定 ${autoFlagged} 枚地雷。`,
       "ok",
